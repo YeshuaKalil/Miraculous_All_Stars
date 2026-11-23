@@ -1,6 +1,7 @@
 from PPlay.window import Window
 from PPlay.scenemanager import SceneManager
 from classes.cenas import Menu, Jogo
+from player import Volpina
 
 
 

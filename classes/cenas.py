@@ -4,6 +4,8 @@ from classes.button import Button
 from classes.mover import Mover
 from classes.jogador import Jogador
 from PPlay.physics import Physics
+from PPlay.input_manager import InputManager
+from PPlay.uikit import ProgressBar
 from player import Volpina
 import time
 
@@ -18,7 +20,7 @@ class Menu(Scene):
         self.logo.set_position(30, 50)
         self.transp = transp
         self.preto = Sprite("recursos/prato.png")
-        self.button.append(Button(Jogo(), "recursos/button0.png", 120, 160))
+        self.button.append(Button(Select(), "recursos/button0.png", 120, 160))
         self.button.append(Button(Opcao(), "recursos/button1.png", 120, 160+a))
         self.button.append(Button(Sair(), "recursos/button2.png", 120, 160+2*a))
 
@@ -38,6 +40,23 @@ class Menu(Scene):
             b.draw()
         self.janela.set_background_color((0,0,0))
         
+class Select(Scene):
+    def __init__(self):
+        self.fundo = Sprite("recursos/character_select.png")
+        self.p1 = None
+        self.p2 = None
+        super().__init__()
+    
+    def loop(self):
+        if self.teclado.key_pressed("SPACE"):
+            self.p1 = Volpina
+            self.p2 = Volpina
+            SceneManager.change_scene(Jogo(self.p1, self.p2))
+            
+    def draw(self):
+        self.fundo.draw()
+            
+        
 class InputBuffer():
     def __init__(self):
         self.inputs = []
@@ -53,10 +72,9 @@ class InputBuffer():
         
 
 class Jogo(Scene):
-    def __init__(self):
+    def __init__(self, p1, p2):
                 super().__init__()
 
-                self.jogador = Volpina(300, 300)
                 self.chao = Sprite("recursos/prato.png")
                 self.chao.set_position(0, 400)
                 self.chao.image.set_alpha(255)
@@ -67,19 +85,70 @@ class Jogo(Scene):
                 self.key=""
                 self.keyCounter = 0
                 self.keyCurrent = ""
-                self.buffer = InputBuffer()
+                self.buffers = [InputBuffer(), InputBuffer()]
+                self.inputs = InputManager()
+                self.inputs.define_action("cima1", "w")
+                self.inputs.define_action("baixo1", "s")
+                self.inputs.define_action("esquerda1", "a")
+                self.inputs.define_action("direita1", "d")
+                self.inputs.define_action("wp1", "u")
+                self.inputs.define_action("mp1", "i")
+                self.inputs.define_action("wk1", "j")
+                self.inputs.define_action("mk1", "k")
+                self.inputs.define_action("pw1", "p")
                 
-    def readInput(self):
+                self.inputs.define_action("cima2", "UP")
+                self.inputs.define_action("baixo2", "DOWN")
+                self.inputs.define_action("esquerda2", "LEFT")
+                self.inputs.define_action("direita2", "RIGHT")
+                self.inputs.define_action("wp2", "7")
+                self.inputs.define_action("mp2", "8")
+                self.inputs.define_action("wk2", "9")
+                self.inputs.define_action("mk2", "0")
+                self.inputs.define_action("pw2", "=")
+                
+                self.p1 = p1(200, 400, ["w", "s", "a", "d"])
+                self.p2 = p2(472, 400, ["UP", "DOWN", "LEFT", "RIGHT"])
+                
+                self.vida1 = ProgressBar(300, 20, "green", "black")
+                self.vida1.set_position(50,40)
+                self.vida1.valor_max = 100
+                
+                self.vida2 = ProgressBar(300, 20, "green", "black")
+                self.vida2.set_position(450,40)
+                self.vida2.valor_max = 100
+                
+    def readInput(self, jogador):
         #if (self.teclado.key_down("LEFT")): self.buffer.add("LEFT")
         #if (self.teclado.key_down("RIGHT")): self.buffer.add("RIGHT")
-        if (self.teclado.key_down("UP")): self.buffer.add("UP")
-        if (self.teclado.key_down("DOWN")): self.buffer.add("DOWN")
-        if (self.teclado.key_down("w")): self.buffer.add("w")
-        if (self.teclado.key_down("e")): self.buffer.add("e")
-        if (self.teclado.key_down("s")): self.buffer.add("s")
-        if (self.teclado.key_down("d")): self.buffer.add("d")
-        if (self.teclado.key_down("t")): self.buffer.add("t")
+        if (self.inputs.action_pressed("cima"+str(jogador+1))): self.buffers[jogador].add("cima")
+        if (self.inputs.action_pressed("baixo"+str(jogador+1))): self.buffers[jogador].add("baixo")
+        if (self.inputs.action_pressed("wp"+str(jogador+1))): self.buffers[jogador].add("wp")
+        if (self.inputs.action_pressed("mp"+str(jogador+1))): self.buffers[jogador].add("mp")
+        if (self.inputs.action_pressed("wk"+str(jogador+1))): self.buffers[jogador].add("wk")
+        if (self.inputs.action_pressed("mk"+str(jogador+1))): self.buffers[jogador].add("mk")
+        if (self.inputs.action_pressed("pw"+str(jogador+1))): self.buffers[jogador].add("pw")
+      
+    def checkCollision(self, attack, hit):
+        if len(attack)<3 or attack[2] is None:
+            return None
         
+        minXH = hit[0][0] + hit[1]["high"][2]
+        minYH = hit[0][1] + hit[1]["high"][3]
+        minXL = hit[0][0] + hit[1]["low"][2]
+        minYL = hit[0][1] + hit[1]["low"][3]
+        
+        maxXH = hit[0][0] + hit[1]["high"][2] + hit[1]["high"][0]
+        maxYH = hit[0][1] + hit[1]["high"][3] + hit[1]["high"][1]
+        maxXL = hit[0][0] + hit[1]["low"][2] + hit[1]["low"][0]
+        maxYL = hit[0][1] + hit[1]["low"][3] + hit[1]["low"][1]
+        
+        if attack[0][0] + attack[2][2] + attack[2][0] > minXH and attack[0][0] + attack[2][2] < maxXH and attack[0][1] + attack[2][3] + attack[2][1] > minYH and attack[0][1] + attack[2][3] < maxYH:
+            return ["high", attack[2][4]]
+        elif attack[0][0] + attack[2][2] + attack[2][0] > minXL and attack[0][0] + attack[2][2] < maxXL and attack[0][1] + attack[2][3] + attack[2][1] > minYL and attack[0][1] + attack[2][3] < maxYL:
+            return ["low", attack[2][4]]
+        else:
+            return None
     
     def loop(self):
         #self.keyCurrent = self.readInput(self.keyCurrent)
@@ -91,10 +160,29 @@ class Jogo(Scene):
            # self.keyCurrent = ""
                 
         #self.key = self.jogador.update(self.janela, self.key, self.chao)
-        self.readInput()
-        self.jogador.update(self.janela, self.buffer, self.chao)
-        if len(self.buffer.get_inputs())>20:
-            self.buffer.clear()
+        self.readInput(0)
+        self.readInput(1)
+        
+        
+        col1 = self.p1.update(self.janela, self.buffers[0], self.chao)
+        col2 = self.p2.update(self.janela, self.buffers[1], self.chao)
+        
+        self.p2.hit(self.checkCollision(col1, col2))
+        self.p1.hit(self.checkCollision(col2, col1))
+        
+        self.vida1.set_value(self.p1.get_vida())
+        self.vida2.set_value(self.p2.get_vida())
+        
+        if self.vida1.valor_atual <= 0 or self.vida2.valor_atual <= 0:
+            if self.vida1.valor_atual == 0 and self.vida2.valor_atual == 0:
+                print("EMPATE!")
+            elif self.vida1.valor_atual == 0:
+                print("P2 GANHOU!")
+            else:
+                print("P1 GANHOU!")
+                
+            SceneManager.change_scene(Menu(0))
+                
         
         if self.teclado.key_pressed("ESC"):
             SceneManager.change_scene(Menu(0))
@@ -104,7 +192,14 @@ class Jogo(Scene):
         self.fundoB.draw()
         self.chao.image.set_alpha(255)
         self.chao.draw()
-        self.jogador.draw()
+        if self.p1.x<self.p2.x:
+            self.p1.draw(False)
+            self.p2.draw(True)
+        else:
+            self.p1.draw(True)
+            self.p2.draw(False)
+        self.vida1.draw()
+        self.vida2.draw()
         
 
 class Opcao(Scene):
