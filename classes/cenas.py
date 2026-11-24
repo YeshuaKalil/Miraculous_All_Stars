@@ -7,6 +7,7 @@ from PPlay.physics import Physics
 from PPlay.input_manager import InputManager
 from PPlay.uikit import ProgressBar
 from player import Volpina
+from object import Object
 import time
 
 class Menu(Scene):
@@ -107,8 +108,17 @@ class Jogo(Scene):
                 self.inputs.define_action("mk2", "0")
                 self.inputs.define_action("pw2", "=")
                 
-                self.p1 = p1(200, 400, ["w", "s", "a", "d"])
-                self.p2 = p2(472, 400, ["UP", "DOWN", "LEFT", "RIGHT"])
+                # Colocar para qualquer personagem
+                self.objetos = [Object(0, 0, "recursos/jogador/obj_volpina.png", None), Object(0, 0, "recursos/jogador/obj_volpina.png", None)]
+                
+                self.p1 = p1(200, 400, ["w", "s", "a", "d"], self.objetos[0])
+                self.p2 = p2(472, 400, ["UP", "DOWN", "LEFT", "RIGHT"], self.objetos[1])
+                
+                self.objetos[0].pai = self.p1
+                self.objetos[0].portador = self.p1
+                
+                self.objetos[1].pai = self.p2
+                self.objetos[1].portador = self.p2
                 
                 self.vida1 = ProgressBar(300, 20, "green", "black")
                 self.vida1.set_position(50,40)
@@ -117,6 +127,9 @@ class Jogo(Scene):
                 self.vida2 = ProgressBar(300, 20, "green", "black")
                 self.vida2.set_position(450,40)
                 self.vida2.valor_max = 100
+                
+                self.espelhado1 = False
+                self.espelhado2 = True
                 
     def readInput(self, jogador):
         #if (self.teclado.key_down("LEFT")): self.buffer.add("LEFT")
@@ -129,9 +142,14 @@ class Jogo(Scene):
         if (self.inputs.action_pressed("mk"+str(jogador+1))): self.buffers[jogador].add("mk")
         if (self.inputs.action_pressed("pw"+str(jogador+1))): self.buffers[jogador].add("pw")
       
-    def checkCollision(self, attack, hit):
-        if len(attack)<3 or attack[2] is None:
+    def checkCollision(self, Oattack, hit, espelhado):
+        if len(Oattack)<3 or Oattack[2] is None:
             return None
+        
+        attack = list(Oattack)
+        attack[2] = list(Oattack[2])
+        if espelhado:
+            attack[2][2] = 128 - attack[2][2] - attack[2][0] #depois trocar 128 pela largura do sprite
         
         minXH = hit[0][0] + hit[1]["high"][2]
         minYH = hit[0][1] + hit[1]["high"][3]
@@ -163,12 +181,49 @@ class Jogo(Scene):
         self.readInput(0)
         self.readInput(1)
         
+        defending1 = False
+        defending2 = False
+        if not self.p1.occupied():
+            if self.p1.x > self.p2.x:
+                self.espelhado1 = True
+                if self.inputs.is_active("direita1"):
+                    defending1 = True
+            else:
+                self.espelhado1 = False
+                if self.inputs.is_active("esquerda1"):
+                    defending1 = True
         
-        col1 = self.p1.update(self.janela, self.buffers[0], self.chao)
-        col2 = self.p2.update(self.janela, self.buffers[1], self.chao)
+        if not self.p2.occupied():
+            if self.p2.x > self.p1.x:
+                self.espelhado2 = True
+                if self.inputs.is_active("direita2"):
+                    defending2 = True
+            else:
+                self.espelhado2 = False
+                if self.inputs.is_active("esquerda2"):
+                    defending2 = True
         
-        self.p2.hit(self.checkCollision(col1, col2))
-        self.p1.hit(self.checkCollision(col2, col1))
+            
+        
+        
+        col1 = self.p1.update(self.janela, self.buffers[0], self.chao, self.objetos)
+        col2 = self.p2.update(self.janela, self.buffers[1], self.chao, self.objetos)
+        
+        if col1 == "FIM":
+            print("P1 GANHOU!")
+            SceneManager.change_scene(Menu(0))
+            return
+        
+        if col2 == "FIM":
+            print("P2 GANHOU!")
+            SceneManager.change_scene(Menu(0))
+            return
+        
+        for object in self.objetos:
+            object.update(self.janela, self.chao)
+        
+        self.p2.hit(self.checkCollision(col1, col2, self.espelhado1), defending2)
+        self.p1.hit(self.checkCollision(col2, col1, self.espelhado2), defending1)
         
         self.vida1.set_value(self.p1.get_vida())
         self.vida2.set_value(self.p2.get_vida())
@@ -192,12 +247,10 @@ class Jogo(Scene):
         self.fundoB.draw()
         self.chao.image.set_alpha(255)
         self.chao.draw()
-        if self.p1.x<self.p2.x:
-            self.p1.draw(False)
-            self.p2.draw(True)
-        else:
-            self.p1.draw(True)
-            self.p2.draw(False)
+        self.p1.draw(self.espelhado1, self.objetos)
+        self.p2.draw(self.espelhado2, self.objetos)
+        for object in self.objetos:
+            object.draw()
         self.vida1.draw()
         self.vida2.draw()
         
