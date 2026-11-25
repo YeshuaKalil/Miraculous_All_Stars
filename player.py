@@ -1,6 +1,6 @@
 from PPlay.sprite import Sprite
 from PPlay.keyboard import Keyboard
-import time
+import time, random
 from object import Object
 
 IDLE = 0
@@ -26,11 +26,13 @@ LOSE = 19
 
 class Player(Sprite):
     
-    def __init__(self, x, y, controle, caminho_imagem, total_frames, linhas):
+    def __init__(self, x, y, controle, caminho_imagem, total_frames, linhas, type):
         super().__init__(caminho_imagem, total_frames, linhas=linhas)
         self.set_position(x,y)
         self.frame_atual = 0
-        self.controle = {
+        self.controle = {}
+        if controle:
+            self.controle = {
             "cima": controle[0],
             "baixo": controle[1],
             "esquerda": controle[2],
@@ -78,7 +80,17 @@ class Player(Sprite):
         self.frameCount = 0
         #self.set_loop()
         self.hit_dur = 0.4
+        self.power_dur = 4
         self.hit_count = 0
+        
+        self.gatilhoCounter = 0
+        self.gatilhoDisparo = 0.2
+        self.type = type
+        self.illusions = []
+        
+        self.pulando = False
+        self.andandoEsq = True
+        self.andandoDir = False
         
         self.objects = []
         self.available = True
@@ -147,6 +159,11 @@ class Player(Sprite):
      
     def hit(self, mode, defense=False):
         if mode:
+            print("ioiho")
+            if self.type == "player":
+                self.illusions = []
+            else:
+                return False
             if defense or self.currentState == DF:
                 self.currentState = DF 
             else:
@@ -161,11 +178,19 @@ class Player(Sprite):
                 else:
                     self.currentState = HB   
             self.states[self.currentState][self.var].set_position(self.x, self.y)
+        return True
             
     def occupied(self):
         if self.currentState in [WALK, JUMP, IDLE]:
             return False
         return True
+    
+    def activate(self):
+        print("POWER ON!")
+        self.illusions.append(Volpina(self.x, self.y, None, None, "cpu"))
+    
+    def deleteI(self, i):
+        self.illusions.pop(i)
     
     def winningState(self):
         self.currentState = WIN
@@ -176,7 +201,7 @@ class Player(Sprite):
         self.states[self.currentState][self.var].set_position(self.x, self.y)
         
     def update(self, janela, buffer, chao, objetos):
-        super().update()    
+        super().update()
         
         buffer_duration = 0.4
         current_time = time.perf_counter()
@@ -195,9 +220,42 @@ class Player(Sprite):
                     self.var = 0
                     break
         
-        if self.currentState in [HA, HB, DF]:
-            
-            if self.hit_count < self.hit_dur:
+        if self.type == "player":
+            self.pulando = self.teclado.key_pressed(self.controle["cima"])
+            self.andandoEsq = self.teclado.key_pressed(self.controle["esquerda"])
+            self.andandoDir = self.teclado.key_pressed(self.controle["direita"])
+        else:
+            self.pulando = True    
+            self.gatilhoCounter += janela.delta_time()
+            if self.gatilhoCounter > random.randint(2,4):
+                self.gatilhoCounter = 0
+                if self.andandoEsq:
+                    self.andandoEsq = False
+                    self.andandoDir = True
+                else:
+                    self.andandoEsq = True
+                    self.andandoDir = False
+            if self.x<0:
+                self.x = 0
+                self.andandoEsq = False
+                self.andandoDir = True
+            elif self.x>janela.width-self.states[self.currentState][0].width:
+                self.x = janela.width-self.states[self.currentState][0].width
+                self.andandoEsq = True
+                self.andandoDir = False 
+        
+        if self.currentState in [HA, HB, DF, POWER]:
+            dur = self.hit_dur
+            if self.currentState == POWER: 
+                dur = self.power_dur
+                if self.hit_count >= self.power_dur / 2:
+                    self.gatilhoCounter += janela.delta_time()
+                    if self.gatilhoCounter >= self.gatilhoDisparo:
+                        self.activate()
+                        self.gatilhoCounter = 0
+                else:
+                    self.gatilhoCounter = 0
+            if self.hit_count < dur:
                 self.states[self.currentState][self.var].set_position(self.x, self.y)
                 self.states[self.currentState][self.var].set_curr_frame(0)
                 colInfo.append(None)
@@ -210,17 +268,17 @@ class Player(Sprite):
                 self.hit_count = 0
         
         if self.currentState == IDLE or self.currentState == WALK or self.currentState == JUMP:
-            if self.teclado.key_pressed(self.controle["esquerda"]) or self.teclado.key_pressed(self.controle["direita"]):
-                if self.teclado.key_pressed(self.controle["direita"]):
+            if self.andandoEsq or self.andandoDir:
+                if self.andandoDir:
                     self.vx = 400
-                if self.teclado.key_pressed(self.controle["esquerda"]): 
+                if self.andandoEsq: 
                     self.vx = -400
                 if self.currentState != JUMP:
                     self.currentState = WALK
             elif self.ground == True:
                 self.vx = 0
                 self.currentState = IDLE
-            if self.teclado.key_pressed(self.controle["cima"]) and self.ground == True:
+            if self.pulando and self.ground == True:
                 self.vy = self.jump
                 self.currentState = JUMP
         elif self.ground == True:
@@ -232,7 +290,7 @@ class Player(Sprite):
             self.y = chao.y-116
             self.vy = 0
             self.ground = True
-            if self.currentState == JUMP and not self.teclado.key_pressed("UP"):
+            if self.currentState == JUMP and not self.pulando:
                 self.currentState = IDLE
         else:
             self.vy += self.g
@@ -324,7 +382,7 @@ class Player(Sprite):
                         if object.pai != object.portador:
                             can_destroy = True
                     if can_destroy: self.currentState = DESTROYING
-                elif command == "pw":
+                elif command == "pw" and not self.illusions:
                     self.currentState = POWER
                 
                 self.states[self.currentState][self.var].set_curr_frame(0)
@@ -358,16 +416,21 @@ class Player(Sprite):
         #self.states[self.currentState][0].set_position(self.x, self.y)
         self.states[self.currentState][self.var].espelhado = espelhado
         self.states[self.currentState][self.var].draw()
+        
+        if self.illusions:
+            for i in self.illusions:
+                i.draw(espelhado, None)
     
 
 class Volpina(Player):
     
     name = "volpina"
     
-    def __init__(self, x, y, controle, objeto, caminho_imagem="recursos/ryu_anim/seq (27).png", total_frames=16, linhas=1):
-        super().__init__(x, y, controle, caminho_imagem, total_frames, linhas)
-        objeto.set_position(x,y)
-        self.objects = [objeto]
+    def __init__(self, x, y, controle, objeto, type="player", caminho_imagem="recursos/ryu_anim/seq (27).png", total_frames=16, linhas=1):
+        super().__init__(x, y, controle, caminho_imagem, total_frames, linhas, type)
+        if objeto:
+            objeto.set_position(x,y)
+            self.objects = [objeto]
         self.cr = {
                     WP: ["cima+wp", "baixo+wp", "wp", "mp"],
                     WWP: [],
@@ -385,7 +448,7 @@ class Volpina(Player):
                     WALK: (Sprite("recursos/volpina/walk.png", 12), None, None, Sprite("recursos/volpina/walk (2).png", 12)),
                     #CROUCH: {Sprite("recursos/jogador/volpina_crouch.png", 4), 0},
                     JUMP: (Sprite("recursos/volpina/jump.png", 1), None, None, Sprite("recursos/volpina/jump (2).png", 1)),
-                    POWER: (Sprite("recursos/volpina/pw.png", 1), None, None, Sprite("recursos/volpina/pw (2).png", 1)),
+                    POWER: (Sprite("recursos/volpina/pw.png", 1), 0, None, Sprite("recursos/volpina/pw (2).png", 1)),
                     #CWALK: {Sprite("recursos/jogador/volpina_crouchWalk.png", 10), 0},
                     #WP: (Sprite("recursos/jogador/wp.png", 5, False), 2, (12, 12, 116, 94, 20)),
                     #WWP: (Sprite("recursos/jogador/wwp.png", 4, False), 0, (0,0,0,0, 20)),
@@ -434,8 +497,8 @@ class Mimico(Player):
     
     name = "mimico"
     
-    def __init__(self, x, y, controle, objeto, caminho_imagem="recursos/ryu_anim/seq (27).png", total_frames=16, linhas=1):
-        super().__init__(x, y, controle, caminho_imagem, total_frames, linhas)
+    def __init__(self, x, y, controle, objeto, type="player", caminho_imagem="recursos/ryu_anim/seq (27).png", total_frames=16, linhas=1):
+        super().__init__(x, y, controle, caminho_imagem, total_frames, linhas, type)
         objeto.set_position(x,y)
         self.objects = [objeto]
         self.cr = {

@@ -45,8 +45,10 @@ class Menu(Scene):
         controls.define_action("wk2", "9")
         controls.define_action("mk2", "0")
         controls.define_action("pw2", "=")
+        
 
     def loop(self):
+        SceneManager.change_scene(Jogo(self.controls, Volpina, Volpina))
         if self.transp > 0:
             self.transp -=2
         for b in self.button:
@@ -277,6 +279,15 @@ class Jogo(Scene):
         
         col1 = self.p1.update(self.janela, self.buffers[0], self.chao, self.objetos)
         col2 = self.p2.update(self.janela, self.buffers[1], self.chao, self.objetos)
+        
+        colI1 = []
+        for i in self.p1.illusions:
+                colI1.append(i.update(self.janela, self.buffers[0], self.chao, None))
+        
+        for i in range(len(self.p1.illusions)):
+            if not self.p1.illusions[i].hit(self.checkCollision(col2, colI1[i], self.espelhado2), False):
+                self.p1.deleteI(i)
+                break
         
         if col1 == "ENDER":
             self.p1.winningState()
