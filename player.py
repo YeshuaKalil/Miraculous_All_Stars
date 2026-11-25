@@ -76,7 +76,7 @@ class Player(Sprite):
         self.fila = []
         self.impact_start = None
         self.impact_duration = 0.3
-        self.frameLimit = 0.08
+        self.frameLimit = 0.1
         self.frameCount = 0
         #self.set_loop()
         self.hit_dur = 0.4
@@ -200,7 +200,7 @@ class Player(Sprite):
         self.currentState = LOSE
         self.states[self.currentState][self.var].set_position(self.x, self.y)
         
-    def update(self, janela, buffer, chao, objetos):
+    def update(self, janela, buffer, chao, objetos, cam):
         super().update()
         
         buffer_duration = 0.4
@@ -235,11 +235,11 @@ class Player(Sprite):
                 else:
                     self.andandoEsq = True
                     self.andandoDir = False
-            if self.x<0:
+            if cam.transform_x(self.x)<0:
                 self.x = 0
                 self.andandoEsq = False
                 self.andandoDir = True
-            elif self.x>janela.width-self.states[self.currentState][0].width:
+            elif cam.transform_x(self.x)>cam.largura-self.states[self.currentState][0].width:
                 self.x = janela.width-self.states[self.currentState][0].width
                 self.andandoEsq = True
                 self.andandoDir = False 
@@ -284,7 +284,13 @@ class Player(Sprite):
         elif self.ground == True:
             self.vx = 0
         
-        self.x += self.vx * janela.delta_time()  
+        self.x += self.vx * janela.delta_time()
+        telaX = cam.transform_x(self.x)
+        if telaX < 0:
+            self.x = cam.x
+        elif telaX + self.states[self.currentState][0].width  > cam.largura:
+            self.x = cam.x + cam.largura - self.states[self.currentState][0].width   
+             
         self.y += self.vy * janela.delta_time()  
         if self.y > chao.y-116:
             self.y = chao.y-116

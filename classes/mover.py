@@ -1,7 +1,7 @@
-from PPlay.sprite import Sprite
+from PPlay.gameimage import GameImage
 from PPlay.mouse import Mouse
 
-class Mover(Sprite):
+class Mover(GameImage):
 
     def __init__(self, caminho_imagem, x, y):
         super().__init__(caminho_imagem)

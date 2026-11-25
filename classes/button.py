@@ -1,7 +1,7 @@
-from PPlay.sprite import Sprite
+from PPlay.gameimage import GameImage
 from PPlay.mouse import Mouse
 
-class Button(Sprite):
+class Button(GameImage):
 
     def __init__(self, scene,  caminho_imagem, x, y):
         super().__init__(caminho_imagem)

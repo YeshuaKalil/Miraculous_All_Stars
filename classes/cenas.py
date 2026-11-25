@@ -7,23 +7,25 @@ from PPlay.physics import Physics
 from PPlay.input_manager import InputManager
 from PPlay.uikit import ProgressBar
 from player import Volpina, Mimico
+from PPlay.gameimage import GameImage
 from object import Object
 import time
+from PPlay.camera import Camera
 
 class Menu(Scene):
     button = []
     
     def __init__(self, transp, controls):
-        self.fundo = Sprite("recursos/fundo.png")
+        self.fundo = GameImage("recursos/fundo.png")
         super().__init__()
         a = 75
-        self.logo = Sprite("recursos/logo.png")
+        self.logo = GameImage("recursos/logo.png")
         self.logo.set_position(30, 50)
         self.transp = transp
         self.controls = controls
-        self.preto = Sprite("recursos/prato.png")
+        self.preto = GameImage("recursos/prato.png")
         self.button.append(Button(Select(self.controls), "recursos/button0.png", 120, 160))
-        self.button.append(Button(Opcao(), "recursos/button1.png", 120, 160+a))
+        self.button.append(Button(Opcao(self.controls), "recursos/button1.png", 120, 160+a))
         self.button.append(Button(Sair(), "recursos/button2.png", 120, 160+2*a))
         
         controls.define_action("cima1", "w")
@@ -48,7 +50,7 @@ class Menu(Scene):
         
 
     def loop(self):
-        SceneManager.change_scene(Jogo(self.controls, Volpina, Volpina))
+        #SceneManager.change_scene(Jogo(self.controls, Volpina, Volpina))
         if self.transp > 0:
             self.transp -=2
         for b in self.button:
@@ -66,20 +68,20 @@ class Menu(Scene):
         
 class Select(Scene):
     def __init__(self, controls):
-        self.fundo = Sprite("recursos/prato.png")
+        self.fundo = GameImage("recursos/prato.png")
         self.controls = controls
         self.p1 = Volpina
         self.p2 = Mimico
         
-        self.j1 = Sprite("recursos/j1.png")
-        self.j2 = Sprite("recursos/j2.png")
+        self.j1 = GameImage("recursos/j1.png")
+        self.j2 = GameImage("recursos/j2.png")
         self.display1 = {
-            (-91, 91): Sprite("recursos/displayVolpina.png"),
-            (91, 91): Sprite("recursos/displayMimico.png")
+            (-91, 91): GameImage("recursos/displayVolpina.png"),
+            (91, 91): GameImage("recursos/displayMimico.png")
         }
         self.display2 = {
-            (-91, 91): Sprite("recursos/displayVolpina.png"),
-            (91, 91): Sprite("recursos/displayMimico.png")
+            (-91, 91): GameImage("recursos/displayVolpina.png"),
+            (91, 91): GameImage("recursos/displayMimico.png")
         }
         for i in self.display1:
             self.display1[i].set_position(-50,30)
@@ -98,7 +100,7 @@ class Select(Scene):
             (-91, 91): Volpina,
             (91, 91): Mimico
         }
-        self.select = Sprite("recursos/select.png")
+        self.select = GameImage("recursos/select.png")
         super().__init__()
     
     def loop(self):
@@ -124,6 +126,7 @@ class Select(Scene):
             self.p1 = self.coord[(self.j1.x, self.j1.y)]
             self.p2 = self.coord[(self.j2.x, self.j2.y)]
             SceneManager.change_scene(Jogo(self.controls, self.p1, self.p2))
+        
             
     def draw(self):
         self.fundo.draw()
@@ -159,7 +162,7 @@ class Jogo(Scene):
                 self.chao.image.set_alpha(255)
                 #self.fisica = Physics(gravidade=5500)
                 #self.jogador.setup_physics(self.fisica, controlavel=False)
-                self.fundoB = Sprite("recursos/fundoB.png")
+                self.fundoB = GameImage("recursos/fundoB.png")
                 self.fundoB.set_position(0, 100)
                 self.key=""
                 self.keyCounter = 0
@@ -172,8 +175,8 @@ class Jogo(Scene):
                 self.objetos = [Object(0, 0, f"recursos/{p1.name}/obj.png", None), Object(0, 0, f"recursos/{p2.name}/obj.png", None)]
                 
                 # Corrigir para controle configuravel
-                self.p1 = p1(200, 400, ["w", "s", "a", "d"], self.objetos[0])
-                self.p2 = p2(472, 400, ["UP", "DOWN", "LEFT", "RIGHT"], self.objetos[1])
+                self.p1 = p1(200, self.chao.y-116, ["w", "s", "a", "d"], self.objetos[0])
+                self.p2 = p2(472, self.chao.y-116, ["UP", "DOWN", "LEFT", "RIGHT"], self.objetos[1])
                 
                 self.objetos[0].pai = self.p1
                 self.objetos[0].portador = self.p1
@@ -192,8 +195,14 @@ class Jogo(Scene):
                 self.espelhado1 = False
                 self.espelhado2 = True
                 
+                self.beggining = 0
                 self.ending = 0
                 self.vencedor = 0
+                
+                self.camera = Camera(800, 444) # mesmo tamanho da janela
+                #self.camera.set_world_bounds(3200, 1200)
+                self.astro = Sprite("recursos/volpina/idle.png")
+                self.astro.set_position((self.p1.x+self.p2.x)/2, min(self.p1.y, self.p2.y))
                 
     def readInput(self, jogador):
         #if (self.teclado.key_down("LEFT")): self.buffer.add("LEFT")
@@ -233,6 +242,12 @@ class Jogo(Scene):
             return None
     
     def loop(self):
+        self.astro.set_position((self.p1.x+self.p2.x)/2, min(self.p1.y, self.p2.y)-50)
+        self.camera.follow(self.astro)
+        
+        if self.beggining < 4:
+            self.beggining += self.janela.delta_time()
+            return
         if self.ending > 0:
             self.ending += self.janela.delta_time()
             if self.ending > 4:
@@ -277,12 +292,12 @@ class Jogo(Scene):
             
         
         
-        col1 = self.p1.update(self.janela, self.buffers[0], self.chao, self.objetos)
-        col2 = self.p2.update(self.janela, self.buffers[1], self.chao, self.objetos)
+        col1 = self.p1.update(self.janela, self.buffers[0], self.chao, self.objetos, self.camera)
+        col2 = self.p2.update(self.janela, self.buffers[1], self.chao, self.objetos, self.camera)
         
         colI1 = []
         for i in self.p1.illusions:
-                colI1.append(i.update(self.janela, self.buffers[0], self.chao, None))
+                colI1.append(i.update(self.janela, self.buffers[0], self.chao, None, self.camera))
         
         for i in range(len(self.p1.illusions)):
             if not self.p1.illusions[i].hit(self.checkCollision(col2, colI1[i], self.espelhado2), False):
@@ -359,18 +374,25 @@ class Jogo(Scene):
                 self.janela.draw_text(f"Jogador {self.vencedor} venceu!", 150, 120, tamanho=60, cor="red")
             else:
                 self.janela.draw_text(f"Empate!", 150, 120, tamanho=60, cor="red")
+        #self.astro.draw()
+        if self.beggining < 4:
+            if self.beggining < 3:
+                self.janela.draw_text("Preparar...", 150, 120, tamanho=60, cor="green")
+            else:
+                self.janela.draw_text("Vai!!!", 150, 120, tamanho=60, cor="green")
         
 
 class Opcao(Scene):
     transp = 0
     mover = []
-    def __init__(self):
-            self.fundo = Sprite("recursos/fundo.png")
+    def __init__(self, controls):
+            self.controls = controls
+            self.fundo = GameImage("recursos/fundo.png")
             super().__init__()
-            self.preto = Sprite("recursos/prato.png")
-            self.logo = Sprite("recursos/logo.png")
+            self.preto = GameImage("recursos/prato.png")
+            self.logo = GameImage("recursos/logo.png")
             self.logo.set_position(30, 50)
-            self.config = Sprite("recursos/config2.png")
+            self.config = GameImage("recursos/config2.png")
             self.config.set_position(self.janela.width/2-self.config.width/2, 100)
             self.button = Button(None, "recursos/button3.png", self.janela.width/2+50, 270)
             self.mover.append(Mover("recursos/mover.png", 361, 131))
@@ -379,11 +401,11 @@ class Opcao(Scene):
     
     def loop(self):
         if self.teclado.key_pressed("ESC"):
-                    SceneManager.change_scene(Menu(self.transp))
+            SceneManager.change_scene(Menu(self.transp, self.controls))
         if self.transp < 155:
             self.transp +=2
         if self.button.update():
-             SceneManager.change_scene(Menu(self.transp))
+             SceneManager.change_scene(Menu(self.transp, self.controls))
         for m in self.mover:
             m.update()
 
