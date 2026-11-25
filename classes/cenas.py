@@ -13,17 +13,38 @@ import time
 class Menu(Scene):
     button = []
     
-    def __init__(self, transp):
+    def __init__(self, transp, controls):
         self.fundo = Sprite("recursos/fundo.png")
         super().__init__()
         a = 75
         self.logo = Sprite("recursos/logo.png")
         self.logo.set_position(30, 50)
         self.transp = transp
+        self.controls = controls
         self.preto = Sprite("recursos/prato.png")
-        self.button.append(Button(Select(), "recursos/button0.png", 120, 160))
+        self.button.append(Button(Select(self.controls), "recursos/button0.png", 120, 160))
         self.button.append(Button(Opcao(), "recursos/button1.png", 120, 160+a))
         self.button.append(Button(Sair(), "recursos/button2.png", 120, 160+2*a))
+        
+        controls.define_action("cima1", "w")
+        controls.define_action("baixo1", "s")
+        controls.define_action("esquerda1", "a")
+        controls.define_action("direita1", "d")
+        controls.define_action("wp1", "u")
+        controls.define_action("mp1", "i")
+        controls.define_action("wk1", "j")
+        controls.define_action("mk1", "k")
+        controls.define_action("pw1", "p")
+                                
+        controls.define_action("cima2", "UP")
+        controls.define_action("baixo2", "DOWN")
+        controls.define_action("esquerda2", "LEFT")
+        controls.define_action("direita2", "RIGHT")
+        controls.define_action("wp2", "7")
+        controls.define_action("mp2", "8")
+        controls.define_action("wk2", "9")
+        controls.define_action("mk2", "0")
+        controls.define_action("pw2", "=")
 
     def loop(self):
         if self.transp > 0:
@@ -42,20 +63,75 @@ class Menu(Scene):
         self.janela.set_background_color((0,0,0))
         
 class Select(Scene):
-    def __init__(self):
-        self.fundo = Sprite("recursos/character_select.png")
-        self.p1 = None
-        self.p2 = None
+    def __init__(self, controls):
+        self.fundo = Sprite("recursos/prato.png")
+        self.controls = controls
+        self.p1 = Volpina
+        self.p2 = Mimico
+        
+        self.j1 = Sprite("recursos/j1.png")
+        self.j2 = Sprite("recursos/j2.png")
+        self.display1 = {
+            (-91, 91): Sprite("recursos/displayVolpina.png"),
+            (91, 91): Sprite("recursos/displayMimico.png")
+        }
+        self.display2 = {
+            (-91, 91): Sprite("recursos/displayVolpina.png"),
+            (91, 91): Sprite("recursos/displayMimico.png")
+        }
+        for i in self.display1:
+            self.display1[i].set_position(-50,30)
+        for i in self.display2:
+            self.display2[i].set_position(392, 30)
+            self.display2[i].set_espelhado(True)
+            
+        self.aval1 = False
+        self.aval2 = False
+        
+        self.j1.set_position(-91, 91)
+        self.j2.set_position(91, 91)
+        self.j1.image.set_alpha(80)
+        self.j2.image.set_alpha(80)
+        self.coord = {
+            (-91, 91): Volpina,
+            (91, 91): Mimico
+        }
+        self.select = Sprite("recursos/select.png")
         super().__init__()
     
     def loop(self):
-        if self.teclado.key_pressed("SPACE"):
-            self.p1 = Volpina
-            self.p2 = Mimico
-            SceneManager.change_scene(Jogo(self.p1, self.p2))
+        self.display1[(self.j1.x, self.j1.y)].x += 500*self.janela.delta_time()
+        self.display2[(self.j2.x, self.j2.y)].x -= 500*self.janela.delta_time()
+        if self.display1[(self.j1.x, self.j1.y)].x > -50:
+            self.display1[(self.j1.x, self.j1.y)].x = -50
+        if self.display2[(self.j2.x, self.j2.y)].x < 392:
+            self.display2[(self.j2.x, self.j2.y)].x = 392
+        if (not self.aval1) and (self.controls.action_pressed("esquerda1") or self.controls.action_pressed("direita1")):
+            self.j1.x *= -1
+            self.display1[(self.j1.x, self.j1.y)].x = -150
+        if (not self.aval2) and (self.controls.action_pressed("esquerda2") or self.controls.action_pressed("direita2")):
+            self.j2.x *= -1
+            self.display2[(self.j2.x, self.j2.y)].x = 492
+        
+        if self.controls.action_pressed("wp1") or self.controls.action_pressed("mp1") or self.controls.action_pressed("wk1") or self.controls.action_pressed("mk1"):
+            self.aval1 = True
+        if self.controls.action_pressed("wp2") or self.controls.action_pressed("mp2") or self.controls.action_pressed("wk2") or self.controls.action_pressed("mk2"):
+            self.aval2 = True
+        
+        if self.aval1 and self.aval2:
+            self.p1 = self.coord[(self.j1.x, self.j1.y)]
+            self.p2 = self.coord[(self.j2.x, self.j2.y)]
+            SceneManager.change_scene(Jogo(self.controls, self.p1, self.p2))
             
     def draw(self):
         self.fundo.draw()
+        self.display1[(self.j1.x, self.j1.y)].draw()
+        self.display2[(self.j2.x, self.j2.y)].draw()
+        self.select.draw()
+        if not self.aval1:
+            self.j1.draw()
+        if not self.aval2:
+            self.j2.draw()
             
         
 class InputBuffer():
@@ -73,7 +149,7 @@ class InputBuffer():
         
 
 class Jogo(Scene):
-    def __init__(self, p1, p2):
+    def __init__(self, controls, p1, p2):
                 super().__init__()
 
                 self.chao = Sprite("recursos/prato.png")
@@ -87,30 +163,13 @@ class Jogo(Scene):
                 self.keyCounter = 0
                 self.keyCurrent = ""
                 self.buffers = [InputBuffer(), InputBuffer()]
-                self.inputs = InputManager()
-                self.inputs.define_action("cima1", "w")
-                self.inputs.define_action("baixo1", "s")
-                self.inputs.define_action("esquerda1", "a")
-                self.inputs.define_action("direita1", "d")
-                self.inputs.define_action("wp1", "u")
-                self.inputs.define_action("mp1", "i")
-                self.inputs.define_action("wk1", "j")
-                self.inputs.define_action("mk1", "k")
-                self.inputs.define_action("pw1", "p")
                 
-                self.inputs.define_action("cima2", "UP")
-                self.inputs.define_action("baixo2", "DOWN")
-                self.inputs.define_action("esquerda2", "LEFT")
-                self.inputs.define_action("direita2", "RIGHT")
-                self.inputs.define_action("wp2", "7")
-                self.inputs.define_action("mp2", "8")
-                self.inputs.define_action("wk2", "9")
-                self.inputs.define_action("mk2", "0")
-                self.inputs.define_action("pw2", "=")
+                self.controls = controls
                 
                 # Colocar para qualquer personagem
                 self.objetos = [Object(0, 0, f"recursos/{p1.name}/obj.png", None), Object(0, 0, f"recursos/{p2.name}/obj.png", None)]
                 
+                # Corrigir para controle configuravel
                 self.p1 = p1(200, 400, ["w", "s", "a", "d"], self.objetos[0])
                 self.p2 = p2(472, 400, ["UP", "DOWN", "LEFT", "RIGHT"], self.objetos[1])
                 
@@ -131,16 +190,19 @@ class Jogo(Scene):
                 self.espelhado1 = False
                 self.espelhado2 = True
                 
+                self.ending = 0
+                self.vencedor = 0
+                
     def readInput(self, jogador):
         #if (self.teclado.key_down("LEFT")): self.buffer.add("LEFT")
         #if (self.teclado.key_down("RIGHT")): self.buffer.add("RIGHT")
-        if (self.inputs.action_pressed("cima"+str(jogador+1))): self.buffers[jogador].add("cima")
-        if (self.inputs.action_pressed("baixo"+str(jogador+1))): self.buffers[jogador].add("baixo")
-        if (self.inputs.action_pressed("wp"+str(jogador+1))): self.buffers[jogador].add("wp")
-        if (self.inputs.action_pressed("mp"+str(jogador+1))): self.buffers[jogador].add("mp")
-        if (self.inputs.action_pressed("wk"+str(jogador+1))): self.buffers[jogador].add("wk")
-        if (self.inputs.action_pressed("mk"+str(jogador+1))): self.buffers[jogador].add("mk")
-        if (self.inputs.action_pressed("pw"+str(jogador+1))): self.buffers[jogador].add("pw")
+        if (self.controls.action_pressed("cima"+str(jogador+1))): self.buffers[jogador].add("cima")
+        if (self.controls.action_pressed("baixo"+str(jogador+1))): self.buffers[jogador].add("baixo")
+        if (self.controls.action_pressed("wp"+str(jogador+1))): self.buffers[jogador].add("wp")
+        if (self.controls.action_pressed("mp"+str(jogador+1))): self.buffers[jogador].add("mp")
+        if (self.controls.action_pressed("wk"+str(jogador+1))): self.buffers[jogador].add("wk")
+        if (self.controls.action_pressed("mk"+str(jogador+1))): self.buffers[jogador].add("mk")
+        if (self.controls.action_pressed("pw"+str(jogador+1))): self.buffers[jogador].add("pw")
       
     def checkCollision(self, Oattack, hit, espelhado):
         if len(Oattack)<3 or Oattack[2] is None:
@@ -169,6 +231,13 @@ class Jogo(Scene):
             return None
     
     def loop(self):
+        if self.ending > 0:
+            self.ending += self.janela.delta_time()
+            if self.ending > 4:
+                SceneManager.change_scene(Menu(0, self.controls))
+            return
+        
+        
         #self.keyCurrent = self.readInput(self.keyCurrent)
         #self.jogador.move(self.keyCurrent, self.janela.delta_time())
         #Eself.keyCounter+=self.janela.delta_time()
@@ -186,21 +255,21 @@ class Jogo(Scene):
         if not self.p1.occupied():
             if self.p1.x > self.p2.x:
                 self.espelhado1 = True
-                if self.inputs.is_active("direita1"):
+                if self.controls.is_active("direita1"):
                     defending1 = True
             else:
                 self.espelhado1 = False
-                if self.inputs.is_active("esquerda1"):
+                if self.controls.is_active("esquerda1"):
                     defending1 = True
         
         if not self.p2.occupied():
             if self.p2.x > self.p1.x:
                 self.espelhado2 = True
-                if self.inputs.is_active("direita2"):
+                if self.controls.is_active("direita2"):
                     defending2 = True
             else:
                 self.espelhado2 = False
-                if self.inputs.is_active("esquerda2"):
+                if self.controls.is_active("esquerda2"):
                     defending2 = True
         
             
@@ -209,14 +278,31 @@ class Jogo(Scene):
         col1 = self.p1.update(self.janela, self.buffers[0], self.chao, self.objetos)
         col2 = self.p2.update(self.janela, self.buffers[1], self.chao, self.objetos)
         
+        if col1 == "ENDER":
+            self.p1.winningState()
+            self.p2.losingState()
+            return
+        
+        if col2 == "ENDER":
+            self.p2.winningState()
+            self.p1.losingState()
+            return
+        
+        if col1 == "FIM" and col2 == "FIM":
+            print("EMPATE!")
+            self.ending = 1
+            return
+        
         if col1 == "FIM":
-            print("P1 GANHOU!")
-            SceneManager.change_scene(Menu(0))
+            print("P2 GANHOU!")
+            self.ending = 1
+            self.vencedor = 2
             return
         
         if col2 == "FIM":
-            print("P2 GANHOU!")
-            SceneManager.change_scene(Menu(0))
+            print("P1 GANHOU!")
+            self.ending = 1
+            self.vencedor = 1
             return
         
         for object in self.objetos:
@@ -230,17 +316,20 @@ class Jogo(Scene):
         
         if self.vida1.valor_atual <= 0 or self.vida2.valor_atual <= 0:
             if self.vida1.valor_atual == 0 and self.vida2.valor_atual == 0:
-                print("EMPATE!")
+                self.p1.losingState()
+                self.p2.losingState()
             elif self.vida1.valor_atual == 0:
-                print("P2 GANHOU!")
+                self.p2.winningState()
+                self.p1.losingState()
+                return
             else:
-                print("P1 GANHOU!")
-                
-            SceneManager.change_scene(Menu(0))
+                self.p1.winningState()
+                self.p2.losingState()
+                return
                 
         
         if self.teclado.key_pressed("ESC"):
-            SceneManager.change_scene(Menu(0))
+            SceneManager.change_scene(Menu(0, self.controls))
 
     def draw(self):
         self.janela.set_background_color((0,0,0))
@@ -253,6 +342,12 @@ class Jogo(Scene):
             object.draw()
         self.vida1.draw()
         self.vida2.draw()
+        
+        if self.ending > 0:
+            if self.vencedor > 0:
+                self.janela.draw_text(f"Jogador {self.vencedor} venceu!", 150, 120, tamanho=60, cor="red")
+            else:
+                self.janela.draw_text(f"Empate!", 150, 120, tamanho=60, cor="red")
         
 
 class Opcao(Scene):

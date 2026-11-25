@@ -21,6 +21,8 @@ HA = 14
 HB = 15
 DF = 16
 DESTROYING = 17
+WIN = 18
+LOSE = 19
 
 class Player(Sprite):
     
@@ -52,7 +54,9 @@ class Player(Sprite):
             DESTROYING:(None,0, None),   
             HA:(None,0, None),
             HB:(None,0, None),
-            DF:(None, 0, None)
+            DF:(None, 0, None),
+            WIN:(None, 0, None),
+            LOSE: (None, 0, None)
         }
         self.collision = {
             "high": None,
@@ -162,6 +166,14 @@ class Player(Sprite):
         if self.currentState in [WALK, JUMP, IDLE]:
             return False
         return True
+    
+    def winningState(self):
+        self.currentState = WIN
+        self.states[self.currentState][self.var].set_position(self.x, self.y)
+    
+    def losingState(self):
+        self.currentState = LOSE
+        self.states[self.currentState][self.var].set_position(self.x, self.y)
         
     def update(self, janela, buffer, chao, objetos):
         super().update()    
@@ -242,6 +254,9 @@ class Player(Sprite):
         if impact_frame is not None and frame == impact_frame:
                         
             if self.currentState == DESTROYING:
+                return "ENDER"
+            
+            if self.currentState == LOSE:
                 return "FIM"
             
             colInfo.append(collision)
@@ -365,6 +380,7 @@ class Volpina(Player):
                     POWER: []
                 }
         self.states = {
+                    WIN: (Sprite("recursos/volpina/idle.png", 1), None, None, Sprite("recursos/volpina/idle (2).png", 1)),
                     IDLE: (Sprite("recursos/volpina/idle.png", 1), None, None, Sprite("recursos/volpina/idle (2).png", 1)),
                     WALK: (Sprite("recursos/volpina/walk.png", 12), None, None, Sprite("recursos/volpina/walk (2).png", 12)),
                     #CROUCH: {Sprite("recursos/jogador/volpina_crouch.png", 4), 0},
@@ -402,7 +418,8 @@ MK:  (Sprite("recursos/volpina/mk.png", 7, False),
                     DESTROYING: (Sprite("recursos/volpina/destroy.png", 10, False), 9, None, Sprite("recursos/volpina/destroy (2).png", 10, False)),
                     HA: (Sprite("recursos/volpina/ha.png", 1, False), 0, None, Sprite("recursos/volpina/ha (2).png", 1, False)),
                     HB: (Sprite("recursos/volpina/hb.png", 1, False), 0, None, Sprite("recursos/volpina/hb (2).png", 1, False)),
-                    DF: (Sprite("recursos/volpina/df.png", 1, False), 0, None, Sprite("recursos/volpina/df (2).png", 1, False))
+                    DF: (Sprite("recursos/volpina/df.png", 1, False), 0, None, Sprite("recursos/volpina/df (2).png", 1, False)),
+                    LOSE: (Sprite("recursos/volpina/fall.png", 9), 8, None, Sprite("recursos/volpina/fall (2).png", 9)),
                 }
         
         self.collision = {
@@ -433,6 +450,7 @@ class Mimico(Player):
                     POWER: []
                 }
         self.states = {
+                    WIN: (Sprite("recursos/mimico/idle.png", 1), None, None, Sprite("recursos/mimico/idle (2).png", 1)),
                     IDLE: (Sprite("recursos/mimico/idle.png", 1), None, None, Sprite("recursos/mimico/idle (2).png", 1)),
                     WALK: (Sprite("recursos/mimico/walk.png", 12), None, None, Sprite("recursos/mimico/walk (2).png", 12)),
                     #CROUCH: {Sprite("recursos/jogador/volpina_crouch.png", 4), 0},
@@ -456,12 +474,13 @@ WK:  (Sprite("recursos/mimico/wk.png", 4, False),
      1, (88, 48, 40, 68, 2), Sprite("recursos/mimico/wk (2).png", 4, False)),
 
 MK:  (Sprite("recursos/mimico/mk.png", 4, False),
-     1, (48, 40, 72, 68, 4), Sprite("recursos/mimico/mk (2).png", 4, False)),
+     1, (48, 40, 72, 68, 40), Sprite("recursos/mimico/mk (2).png", 4, False)),
                     CATCH: (Sprite("recursos/mimico/catch.png", 6, False), 2, None, Sprite("recursos/mimico/catch (2).png", 6, False)),
                     DESTROYING: (Sprite("recursos/mimico/destroy.png", 10, False), 9, None, Sprite("recursos/mimico/destroy (2).png", 10, False)),
                     HA: (Sprite("recursos/mimico/ha.png", 1, False), 0, None, Sprite("recursos/mimico/ha (2).png", 1, False)),
                     HB: (Sprite("recursos/mimico/hb.png", 1, False), 0, None, Sprite("recursos/mimico/hb (2).png", 1, False)),
-                    DF: (Sprite("recursos/mimico/df.png", 1, False), 0, None, Sprite("recursos/mimico/df (2).png", 1, False))
+                    DF: (Sprite("recursos/mimico/df.png", 1, False), 0, None, Sprite("recursos/mimico/df (2).png", 1, False)),
+                    LOSE: (Sprite("recursos/mimico/fall.png", 6), 5, None, Sprite("recursos/mimico/fall (2).png", 6))
                 }
         
         self.collision = {
