@@ -77,7 +77,9 @@ class Player(Sprite):
         self.hit_count = 0
         
         self.objects = []
+        self.available = True
         
+        self.var = 0
         
         self.cr = {
             WP: ["cima+wp", "baixo+wp", "wp", "mp"],
@@ -154,7 +156,7 @@ class Player(Sprite):
                     self.currentState = HA
                 else:
                     self.currentState = HB   
-            self.states[self.currentState][0].set_position(self.x, self.y)
+            self.states[self.currentState][self.var].set_position(self.x, self.y)
             
     def occupied(self):
         if self.currentState in [WALK, JUMP, IDLE]:
@@ -174,17 +176,24 @@ class Player(Sprite):
         
         colInfo = [(self.x, self.y), self.collision]
         
+        self.var = 3
+        if self.objects:
+            for object in self.objects:
+                if object.pai == self:
+                    self.var = 0
+                    break
+        
         if self.currentState in [HA, HB, DF]:
             
             if self.hit_count < self.hit_dur:
-                self.states[self.currentState][0].set_position(self.x, self.y)
-                self.states[self.currentState][0].set_curr_frame(0)
+                self.states[self.currentState][self.var].set_position(self.x, self.y)
+                self.states[self.currentState][self.var].set_curr_frame(0)
                 colInfo.append(None)
                 self.hit_count+=janela.delta_time()
                 return colInfo
             else:
                 self.currentState = IDLE
-                self.states[self.currentState][0].set_curr_frame(0)
+                self.states[self.currentState][self.var].set_curr_frame(0)
                 buffer.clear()
                 self.hit_count = 0
         
@@ -225,18 +234,12 @@ class Player(Sprite):
                 "time": time.perf_counter()
             })
         
-        sprite, impact_frame, collision = self.states[self.currentState]
+        sprite, impact_frame, collision, other = self.states[self.currentState]
 
-        frame = sprite.get_curr_frame()
-        last_frame = sprite.total_frames-1
+        frame = self.states[self.currentState][self.var].get_curr_frame()
+        last_frame = self.states[self.currentState][self.var].total_frames-1
 
         if impact_frame is not None and frame == impact_frame:
-            
-            if self.currentState == CATCH:
-                for objeto in objetos:
-                    referee = objeto.acoplar(sprite, self)
-                    if referee:
-                        self.objects.insert(0, referee)
                         
             if self.currentState == DESTROYING:
                 return "FIM"
@@ -245,11 +248,20 @@ class Player(Sprite):
 
             if self.impact_start is None:
                 self.impact_start = time.perf_counter()
+                
+            if self.currentState == CATCH and self.available == True:
+                for objeto in objetos:
+                    referee = objeto.acoplar(self.states[self.currentState][self.var], self)
+                    if referee:
+                        self.objects.insert(0, referee)
+                        self.available = False
+                        break
 
             if time.perf_counter() - self.impact_start >= self.impact_duration:
                 self.impact_start = None
-                sprite.set_curr_frame(frame+1)
-                print("Before/after:", frame, sprite.get_curr_frame())
+                self.available = True
+                self.states[self.currentState][self.var].set_curr_frame(frame+1)
+                #print("Before/after:", frame, sprite.get_curr_frame())
                 
                 if self.fila and self.fila[0]["command"] in self.cr[self.currentState]:
                     command = self.fila.pop(0)["command"]
@@ -274,7 +286,7 @@ class Player(Sprite):
                             self.currentState = MP
                         elif command == "mk":
                             self.currentState = MK
-                    self.states[self.currentState][0].set_curr_frame(0)
+                    self.states[self.currentState][self.var].set_curr_frame(0)
                     
                     
         elif frame == last_frame or self.currentState in [WALK, JUMP, IDLE]:
@@ -300,13 +312,13 @@ class Player(Sprite):
                 elif command == "pw":
                     self.currentState = POWER
                 
-                self.states[self.currentState][0].set_curr_frame(0)
+                self.states[self.currentState][self.var].set_curr_frame(0)
                 
             elif self.currentState == WALK or self.currentState == JUMP:
                 self.frameCount += janela.delta_time()
                 if self.frameCount >= self.frameLimit:
                     self.frameCount -= self.frameLimit
-                    sprite.set_curr_frame((frame + 1) % sprite.total_frames)
+                    self.states[self.currentState][self.var].set_curr_frame((frame + 1) % self.states[self.currentState][self.var].total_frames)
             else:
                 self.currentState = IDLE
                 self.states[self.currentState][0].set_curr_frame(0)
@@ -315,10 +327,10 @@ class Player(Sprite):
             self.frameCount += janela.delta_time()
             if self.frameCount >= self.frameLimit:
                 self.frameCount -= self.frameLimit
-                sprite.set_curr_frame((frame + 1) % sprite.total_frames)
+                self.states[self.currentState][self.var].set_curr_frame((frame + 1) % self.states[self.currentState][self.var].total_frames)
         
         
-        self.states[self.currentState][0].set_position(self.x, self.y)
+        self.states[self.currentState][self.var].set_position(self.x, self.y)
         #if not input in self.combos and len(input)>3:
          #   input = input[-2:]
         #janela.draw_text(command, 0, 0, tamanho=20, color=(255, 0, 0))
@@ -329,22 +341,35 @@ class Player(Sprite):
     
     def draw(self, espelhado, objetos):
         #self.states[self.currentState][0].set_position(self.x, self.y)
-        self.states[self.currentState][0].espelhado = espelhado
-        self.states[self.currentState][0].draw()
+        self.states[self.currentState][self.var].espelhado = espelhado
+        self.states[self.currentState][self.var].draw()
     
 
 class Volpina(Player):
+    
+    name = "volpina"
     
     def __init__(self, x, y, controle, objeto, caminho_imagem="recursos/ryu_anim/seq (27).png", total_frames=16, linhas=1):
         super().__init__(x, y, controle, caminho_imagem, total_frames, linhas)
         objeto.set_position(x,y)
         self.objects = [objeto]
+        self.cr = {
+                    WP: ["cima+wp", "baixo+wp", "wp", "mp"],
+                    WWP: [],
+                    UWP: [],
+                    DWP: [],
+                    MP: ["mk"],
+                    WK: ["wp", "mp", "mk"],
+                    MK: [],
+                    CATCH: [],
+                    POWER: []
+                }
         self.states = {
-                    IDLE: (Sprite("recursos/jogador/idle.png", 1), None, None),
-                    WALK: (Sprite("recursos/jogador/volpina_walk.png", 12), None, None),
+                    IDLE: (Sprite("recursos/volpina/idle.png", 1), None, None, Sprite("recursos/volpina/idle (2).png", 1)),
+                    WALK: (Sprite("recursos/volpina/walk.png", 12), None, None, Sprite("recursos/volpina/walk (2).png", 12)),
                     #CROUCH: {Sprite("recursos/jogador/volpina_crouch.png", 4), 0},
-                    JUMP: (Sprite("recursos/jogador/volpina_jump.png", 1), None, None),
-                    POWER: (Sprite("recursos/jogador/volpina_power.png", 1), None, None),
+                    JUMP: (Sprite("recursos/volpina/jump.png", 1), None, None, Sprite("recursos/volpina/jump (2).png", 1)),
+                    POWER: (Sprite("recursos/volpina/pw.png", 1), None, None, Sprite("recursos/volpina/pw (2).png", 1)),
                     #CWALK: {Sprite("recursos/jogador/volpina_crouchWalk.png", 10), 0},
                     #WP: (Sprite("recursos/jogador/wp.png", 5, False), 2, (12, 12, 116, 94, 20)),
                     #WWP: (Sprite("recursos/jogador/wwp.png", 4, False), 0, (0,0,0,0, 20)),
@@ -353,31 +378,90 @@ class Volpina(Player):
                     #MP: (Sprite("recursos/jogador/mp.png", 3, False), 1, (0,0,0,0, 20)),
                     #WK: (Sprite("recursos/jogador/wk.png", 5, False), 2, (0,0,0,0, 20)),
                     #MK: (Sprite("recursos/jogador/mk.png", 5, False), 2, (0,0,0,0, 20)),
-                    WP:  (Sprite("recursos/jogador/wp.png", 5, False),
-     2, (32, 18, 90, 94, 2)),
+                    WP:  (Sprite("recursos/volpina/wp.png", 6, False),
+     2, (32, 18, 90, 94, 2), Sprite("recursos/volpina/wp (2).png", 6, False)),
 
-WWP: (Sprite("recursos/jogador/wwp.png", 4, False),
-     0, (44, 16, 84, 80, 2)),
+WWP: (Sprite("recursos/volpina/wwp.png", 4, False),
+     0, (44, 16, 84, 80, 2), Sprite("recursos/volpina/wwp (2).png", 4, False)),
 
-UWP: (Sprite("recursos/jogador/uwp.png", 4, False),
-     0, (40, 28, 88, 50, 2)),
+UWP: (Sprite("recursos/volpina/uwp.png", 4, False),
+     0, (40, 28, 88, 50, 2), Sprite("recursos/volpina/uwp (2).png", 4, False)),
 
-DWP: (Sprite("recursos/jogador/dwp.png", 4, False),
-     0, (30, 28, 94, 92, 2)),
+DWP: (Sprite("recursos/volpina/dwp.png", 4, False),
+     0, (30, 28, 94, 92, 2), Sprite("recursos/volpina/dwp (2).png", 4, False)),
 
-MP:  (Sprite("recursos/jogador/mp.png", 3, False),
-     1, (32, 42, 92, 52, 4)),
+MP:  (Sprite("recursos/volpina/mp.png", 4, False),
+     1, (32, 42, 92, 52, 4), Sprite("recursos/volpina/mp (2).png", 4, False)),
 
-WK:  (Sprite("recursos/jogador/wk.png", 5, False),
-     2, (52, 28, 76, 84, 2)),
+WK:  (Sprite("recursos/volpina/wk.png", 6, False),
+     2, (52, 28, 76, 84, 2), Sprite("recursos/volpina/wk (2).png", 6, False)),
 
-MK:  (Sprite("recursos/jogador/mk.png", 5, False),
-     2, (36, 40, 80, 48, 4)),
-                    CATCH: (Sprite("recursos/jogador/catch.png", 5, False), 2, None),
-                    DESTROYING: (Sprite("recursos/jogador/destroy.png", 8, False), 7, None),
-                    HA: (Sprite("recursos/jogador/ha.png", 1, False), 0, None),
-                    HB: (Sprite("recursos/jogador/hb.png", 1, False), 0, None),
-                    DF: (Sprite("recursos/jogador/button1.png", 1, False), 0, None)
+MK:  (Sprite("recursos/volpina/mk.png", 7, False),
+     3, (36, 40, 80, 48, 4), Sprite("recursos/volpina/mk (2).png", 7, False)),
+                    CATCH: (Sprite("recursos/volpina/catch.png", 6, False), 2, None, Sprite("recursos/volpina/catch (2).png", 6, False)),
+                    DESTROYING: (Sprite("recursos/volpina/destroy.png", 10, False), 9, None, Sprite("recursos/volpina/destroy (2).png", 10, False)),
+                    HA: (Sprite("recursos/volpina/ha.png", 1, False), 0, None, Sprite("recursos/volpina/ha (2).png", 1, False)),
+                    HB: (Sprite("recursos/volpina/hb.png", 1, False), 0, None, Sprite("recursos/volpina/hb (2).png", 1, False)),
+                    DF: (Sprite("recursos/volpina/df.png", 1, False), 0, None, Sprite("recursos/volpina/df (2).png", 1, False))
+                }
+        
+        self.collision = {
+            "high": (68, 35, 29, 39),
+            "low":  (68, 35, 29, 74)
+        }
+        self.states[self.currentState][0].set_position(self.x, self.y)
+
+
+
+class Mimico(Player):
+    
+    name = "mimico"
+    
+    def __init__(self, x, y, controle, objeto, caminho_imagem="recursos/ryu_anim/seq (27).png", total_frames=16, linhas=1):
+        super().__init__(x, y, controle, caminho_imagem, total_frames, linhas)
+        objeto.set_position(x,y)
+        self.objects = [objeto]
+        self.cr = {
+                    WP: ["mp"],
+                    WWP: [],
+                    UWP: [],
+                    DWP: [],
+                    MP: [],
+                    WK: [],
+                    MK: [],
+                    CATCH: [],
+                    POWER: []
+                }
+        self.states = {
+                    IDLE: (Sprite("recursos/mimico/idle.png", 1), None, None, Sprite("recursos/mimico/idle (2).png", 1)),
+                    WALK: (Sprite("recursos/mimico/walk.png", 12), None, None, Sprite("recursos/mimico/walk (2).png", 12)),
+                    #CROUCH: {Sprite("recursos/jogador/volpina_crouch.png", 4), 0},
+                    JUMP: (Sprite("recursos/mimico/jump.png", 1), None, None, Sprite("recursos/mimico/jump (2).png", 1)),
+                    POWER: (Sprite("recursos/mimico/pw.png", 1), None, None, Sprite("recursos/mimico/pw (2).png", 1)),
+                    #CWALK: {Sprite("recursos/jogador/volpina_crouchWalk.png", 10), 0},
+                    #WP: (Sprite("recursos/jogador/wp.png", 5, False), 2, (12, 12, 116, 94, 20)),
+                    #WWP: (Sprite("recursos/jogador/wwp.png", 4, False), 0, (0,0,0,0, 20)),
+                    #UWP: (Sprite("recursos/jogador/uwp.png", 4, False), 0, (0,0,0,0, 20)),
+                    #DWP: (Sprite("recursos/jogador/dwp.png", 4, False), 0, (0,0,0,0, 20)),
+                    #MP: (Sprite("recursos/jogador/mp.png", 3, False), 1, (0,0,0,0, 20)),
+                    #WK: (Sprite("recursos/jogador/wk.png", 5, False), 2, (0,0,0,0, 20)),
+                    #MK: (Sprite("recursos/jogador/mk.png", 5, False), 2, (0,0,0,0, 20)),
+                    WP:  (Sprite("recursos/mimico/wp.png", 6, False),
+     2, (88, 52, 40, 48, 2), Sprite("recursos/mimico/wp (2).png", 6, False)),
+
+MP:  (Sprite("recursos/mimico/mp.png", 4, False),
+     1, (92, 48, 36, 44, 4), Sprite("recursos/mimico/mp (2).png", 4, False)),
+
+WK:  (Sprite("recursos/mimico/wk.png", 4, False),
+     1, (88, 48, 40, 68, 2), Sprite("recursos/mimico/wk (2).png", 4, False)),
+
+MK:  (Sprite("recursos/mimico/mk.png", 4, False),
+     1, (48, 40, 72, 68, 4), Sprite("recursos/mimico/mk (2).png", 4, False)),
+                    CATCH: (Sprite("recursos/mimico/catch.png", 6, False), 2, None, Sprite("recursos/mimico/catch (2).png", 6, False)),
+                    DESTROYING: (Sprite("recursos/mimico/destroy.png", 10, False), 9, None, Sprite("recursos/mimico/destroy (2).png", 10, False)),
+                    HA: (Sprite("recursos/mimico/ha.png", 1, False), 0, None, Sprite("recursos/mimico/ha (2).png", 1, False)),
+                    HB: (Sprite("recursos/mimico/hb.png", 1, False), 0, None, Sprite("recursos/mimico/hb (2).png", 1, False)),
+                    DF: (Sprite("recursos/mimico/df.png", 1, False), 0, None, Sprite("recursos/mimico/df (2).png", 1, False))
                 }
         
         self.collision = {

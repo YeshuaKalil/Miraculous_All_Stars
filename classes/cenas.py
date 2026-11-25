@@ -6,7 +6,7 @@ from classes.jogador import Jogador
 from PPlay.physics import Physics
 from PPlay.input_manager import InputManager
 from PPlay.uikit import ProgressBar
-from player import Volpina
+from player import Volpina, Mimico
 from object import Object
 import time
 
@@ -51,7 +51,7 @@ class Select(Scene):
     def loop(self):
         if self.teclado.key_pressed("SPACE"):
             self.p1 = Volpina
-            self.p2 = Volpina
+            self.p2 = Mimico
             SceneManager.change_scene(Jogo(self.p1, self.p2))
             
     def draw(self):
@@ -109,7 +109,7 @@ class Jogo(Scene):
                 self.inputs.define_action("pw2", "=")
                 
                 # Colocar para qualquer personagem
-                self.objetos = [Object(0, 0, "recursos/jogador/obj_volpina.png", None), Object(0, 0, "recursos/jogador/obj_volpina.png", None)]
+                self.objetos = [Object(0, 0, f"recursos/{p1.name}/obj.png", None), Object(0, 0, f"recursos/{p2.name}/obj.png", None)]
                 
                 self.p1 = p1(200, 400, ["w", "s", "a", "d"], self.objetos[0])
                 self.p2 = p2(472, 400, ["UP", "DOWN", "LEFT", "RIGHT"], self.objetos[1])
