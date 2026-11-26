@@ -2,7 +2,6 @@ from PPlay.scenemanager import SceneManager, Scene
 from PPlay.sprite import Sprite
 from classes.button import Button
 from classes.mover import Mover
-from classes.jogador import Jogador
 from PPlay.physics import Physics
 from PPlay.input_manager import InputManager
 from PPlay.uikit import ProgressBar
@@ -13,6 +12,18 @@ import time
 from PPlay.camera import Camera
 from PPlay.fontes import Fontes
 Fontes.registrar("Pixel", "recursos/pixel.ttf")
+from PPlay.sound import Music, Sound, SoundManager
+
+volume = 100
+theme = Music("recursos/sons/tema.ogg")
+theme.play()
+
+buttonSound = Sound("recursos/sons/button.wav")
+selectSound = Sound("recursos/sons/selected.wav")
+choosingSound = Sound("recursos/sons/choosing.wav")
+soproSound = Sound("recursos/sons/sopro.wav")
+batSound = Sound("recursos/sons/bat.wav")
+stinSound = Sound("recursos/sons/stin.wav")
 
 class Menu(Scene):
     button = []
@@ -26,9 +37,9 @@ class Menu(Scene):
         self.transp = transp
         self.controls = controls
         self.preto = GameImage("recursos/prato.png")
-        self.button.append(Button(Select(self.controls), "recursos/button0.png", 120, 160))
-        self.button.append(Button(Opcao(self.controls), "recursos/button1.png", 120, 160+a))
-        self.button.append(Button(Sair(), "recursos/button2.png", 120, 160+2*a))
+        self.button.append(Button(Select(self.controls), "recursos/button0.png", 120, 160, buttonSound))
+        self.button.append(Button(Opcao(self.controls), "recursos/button1.png", 120, 160+a, buttonSound))
+        self.button.append(Button(Sair(), "recursos/button2.png", 120, 160+2*a, buttonSound))
         
         controls.define_action("cima1", "w")
         controls.define_action("baixo1", "s")
@@ -113,15 +124,19 @@ class Select(Scene):
         if self.display2[(self.j2.x, self.j2.y)].x < 392:
             self.display2[(self.j2.x, self.j2.y)].x = 392
         if (not self.aval1) and (self.controls.action_pressed("esquerda1") or self.controls.action_pressed("direita1")):
+            choosingSound.play()
             self.j1.x *= -1
             self.display1[(self.j1.x, self.j1.y)].x = -150
         if (not self.aval2) and (self.controls.action_pressed("esquerda2") or self.controls.action_pressed("direita2")):
+            choosingSound.play()
             self.j2.x *= -1
             self.display2[(self.j2.x, self.j2.y)].x = 492
         
         if self.controls.action_pressed("wp1") or self.controls.action_pressed("mp1") or self.controls.action_pressed("wk1") or self.controls.action_pressed("mk1"):
+            selectSound.play()
             self.aval1 = True
         if self.controls.action_pressed("wp2") or self.controls.action_pressed("mp2") or self.controls.action_pressed("wk2") or self.controls.action_pressed("mk2"):
+            selectSound.play()
             self.aval2 = True
         
         if self.aval1 and self.aval2:
@@ -177,9 +192,15 @@ class Jogo(Scene):
                 # Colocar para qualquer personagem
                 self.objetos = [Object(0, 0, f"recursos/{p1.name}/obj.png", None), Object(0, 0, f"recursos/{p2.name}/obj.png", None)]
                 
+                self.sound1 = batSound
+                if p1 == Volpina:
+                    self.sound1 = soproSound
+                self.sound2 = batSound
+                if p2 == Volpina:
+                    self.sound2 = soproSound
                 # Corrigir para controle configuravel
-                self.p1 = p1(200, self.chao.y, ["w", "s", "a", "d"], self.objetos[0])
-                self.p2 = p2(472, self.chao.y, ["UP", "DOWN", "LEFT", "RIGHT"], self.objetos[1])
+                self.p1 = p1(200, self.chao.y, ["w", "s", "a", "d"], self.objetos[0], self.sound1)
+                self.p2 = p2(472, self.chao.y, ["UP", "DOWN", "LEFT", "RIGHT"], self.objetos[1], self.sound2)
                 
                 self.objetos[0].pai = self.p1
                 self.objetos[0].portador = self.p1
@@ -336,7 +357,7 @@ class Jogo(Scene):
                         
                 
         for i in range(len(self.p1.illusions)):
-            if not self.p1.illusions[i].hit(self.checkCollision(col2, colI1[i], self.espelhado2), False):
+            if not self.p1.illusions[i].hit(self.checkCollision(col2, colI1[i], self.espelhado2), False,  sound=stinSound, batSound=batSound):
                 self.p1.deleteI(i)
                 break
                     #if not (self.p1.illusions[i].x+self.p1.illusions[i].collision["low"][2]<self.chao.x+self.chao.width and self.p1.illusions[i].x+self.p1.illusions[i].collision["low"][2]+self.p1.illusions[i].collision["low"][0]>self.chao.x):
@@ -348,7 +369,7 @@ class Jogo(Scene):
             colI2.append(i.update(self.janela, None, self.chao, None, self.camera))
                         
         for i in range(len(self.p2.illusions)):
-            if not self.p2.illusions[i].hit(self.checkCollision(col1, colI2[i], self.espelhado2), False):
+            if not self.p2.illusions[i].hit(self.checkCollision(col1, colI2[i], self.espelhado2), False, sound = stinSound, batSound=batSound):
                 self.p2.deleteI(i)
                 break
                             #if not (self.p1.illusions[i].x+self.p1.illusions[i].collision["low"][2]<self.chao.x+self.chao.width and self.p1.illusions[i].x+self.p1.illusions[i].collision["low"][2]+self.p1.illusions[i].collision["low"][0]>self.chao.x):
@@ -399,8 +420,8 @@ class Jogo(Scene):
         #if len(col2)>2 and len(col2[2])>4:
          #   bat2 = True
 
-        self.p2.hit(hit2, defending2, objectable2, bat1)
-        self.p1.hit(hit1, defending1, objectable1, bat2)
+        self.p2.hit(hit2, defending2, objectable2, bat1, sound=stinSound, batSound=batSound)
+        self.p1.hit(hit1, defending1, objectable1, bat2, sound=stinSound, batSound=batSound)
         
         self.vida1.set_value(self.p1.get_vida())
         self.vida2.set_value(self.p2.get_vida())
@@ -470,12 +491,17 @@ class Opcao(Scene):
             self.logo.set_position(30, 50)
             self.config = GameImage("recursos/config2.png")
             self.config.set_position(self.janela.width/2-self.config.width/2, 100)
-            self.button = Button(None, "recursos/button3.png", self.janela.width/2+50, 270)
+            self.button = Button(None, "recursos/button3.png", self.janela.width/2+50, 270, buttonSound)
             self.mover.append(Mover("recursos/mover.png", 361, 131))
             self.mover.append(Mover("recursos/mover.png", 361, 175))
             self.mover.append(Mover("recursos/mover.png", 361, 206))
     
     def loop(self):
+        largura = self.mover[0].fim - self.mover[0].ini
+        volume = (100*self.mover[0].x)//largura
+        SoundManager.set_sfx_volume(((100*self.mover[1].x)//largura)*(volume//100))
+        SoundManager.set_music_volume(((100*self.mover[2].x)//largura)*(volume//100))
+        
         if self.teclado.key_pressed("ESC"):
             SceneManager.change_scene(Menu(self.transp, self.controls))
         if self.transp < 155:

@@ -30,8 +30,9 @@ CAUGHT = 22
 
 class Player(Sprite):
     
-    def __init__(self, x, y, controle, caminho_imagem, total_frames, linhas, type):
+    def __init__(self, x, y, controle, caminho_imagem, total_frames, linhas, type, sound):
         super().__init__(caminho_imagem, total_frames, linhas=linhas)
+        self.sound = sound
         self.set_position(x,y)
         self.frame_atual = 0
         self.controle = {}
@@ -173,7 +174,7 @@ class Player(Sprite):
 
         return None
      
-    def hit(self, mode, defense=False, objectable=False, bat=False):
+    def hit(self, mode, defense=False, objectable=False, bat=False, sound=None, batSound = None):
         if mode:
             print("ioiho")
             if self.type == "player":
@@ -193,7 +194,11 @@ class Player(Sprite):
                             self.objects.pop(0)
                 if bat:
                     self.currentState = CAUGHT
+                    batSound.play()
+                
                 else:
+                    if self.currentState not in [HA, HB, DF, CAUGHT]:
+                        sound.play()
                     if mode[0] == "high":
                         self.currentState = HA
                     else:
@@ -273,7 +278,9 @@ class Player(Sprite):
             if self.currentState in [HA, HB, DF, POWER]:
                 print("uygogyyug")
                 dur = self.hit_dur
-                if self.currentState == POWER: 
+                if self.currentState == POWER:
+                    if self.hit_count == 0:
+                        self.sound.play()
                     dur = self.power_dur
                     if self.hit_count >= self.power_dur / 2:
                         self.gatilhoCounter += janela.delta_time()
@@ -482,8 +489,8 @@ class Volpina(Player):
     
     name = "volpina"
     
-    def __init__(self, x, y, controle, objeto, type="player", caminho_imagem="recursos/volpina/idle.png", total_frames=16, linhas=1):
-        super().__init__(x, y, controle, caminho_imagem, total_frames, linhas, type)
+    def __init__(self, x, y, controle, objeto, sound=None, type="player", caminho_imagem="recursos/volpina/idle.png", total_frames=16, linhas=1):
+        super().__init__(x, y, controle, caminho_imagem, total_frames, linhas, type, sound)
         if objeto:
             objeto.set_position(x,y)
             self.objects = [objeto]
@@ -518,13 +525,13 @@ class Volpina(Player):
      2, (32, 18, 90, 94, 2), Sprite("recursos/volpina/wp (2).png", 6, False)),
 
 WWP: (Sprite("recursos/volpina/wwp.png", 4, False),
-     0, (44, 16, 84, 80, 2), Sprite("recursos/volpina/wwp (2).png", 4, False)),
+     0, (44, 16, 84, 80, 3), Sprite("recursos/volpina/wwp (2).png", 4, False)),
 
 UWP: (Sprite("recursos/volpina/uwp.png", 4, False),
-     0, (40, 28, 88, 50, 2), Sprite("recursos/volpina/uwp (2).png", 4, False)),
+     0, (40, 28, 88, 50, 3), Sprite("recursos/volpina/uwp (2).png", 4, False)),
 
 DWP: (Sprite("recursos/volpina/dwp.png", 4, False),
-     0, (30, 28, 94, 92, 2), Sprite("recursos/volpina/dwp (2).png", 4, False)),
+     0, (30, 28, 94, 92, 3), Sprite("recursos/volpina/dwp (2).png", 4, False)),
 
 MP:  (Sprite("recursos/volpina/mp.png", 4, False),
      1, (32, 42, 92, 52, 4), Sprite("recursos/volpina/mp (2).png", 4, False)),
@@ -551,7 +558,7 @@ MK:  (Sprite("recursos/volpina/mk.png", 7, False),
         self.states[self.currentState][0].set_position(self.x, self.y)
     
     def activate(self):
-            self.illusions.append(Volpina(self.x, self.y, None, None, "cpu"))
+            self.illusions.append(Volpina(self.x, self.y, None, None, None, "cpu"))
 
 
 
@@ -559,8 +566,8 @@ class Mimico(Player):
     
     name = "mimico"
     
-    def __init__(self, x, y, controle, objeto, type="player", caminho_imagem="recursos/mimico/idle.png", total_frames=16, linhas=1):
-        super().__init__(x, y, controle, caminho_imagem, total_frames, linhas, type)
+    def __init__(self, x, y, controle, objeto, sound=None, type="player", caminho_imagem="recursos/mimico/idle.png", total_frames=16, linhas=1):
+        super().__init__(x, y, controle, caminho_imagem, total_frames, linhas, type, sound)
         objeto.set_position(x,y)
         self.objects = [objeto]
         self.cr = {
@@ -581,7 +588,7 @@ class Mimico(Player):
                     WALK: (Sprite("recursos/mimico/walk.png", 12), None, None, Sprite("recursos/mimico/walk (2).png", 12)),
                     #CROUCH: {Sprite("recursos/jogador/volpina_crouch.png", 4), 0},
                     JUMP: (Sprite("recursos/mimico/jump.png", 1), None, None, Sprite("recursos/mimico/jump (2).png", 1)),
-                    POWER: (Sprite("recursos/mimico/pw.png", 4), 2, (58, 48, 75, 48, 2, 1), Sprite("recursos/mimico/pw (2).png", 4)),
+                    POWER: (Sprite("recursos/mimico/pw.png", 4), 2, (58, 48, 75, 48, 3), Sprite("recursos/mimico/pw (2).png", 4)),
                     IDLEP: (Sprite("recursos/mimico/idleP.png", 1), None, None, Sprite("recursos/mimico/idleP (2).png", 1)),
                     WALKP: (Sprite("recursos/mimico/walkP.png", 12), None, None, Sprite("recursos/mimico/walkP (2).png", 12)),
                     #CWALK: {Sprite("recursos/jogador/volpina_crouchWalk.png", 10), 0},
@@ -596,13 +603,13 @@ class Mimico(Player):
      2, (88, 52, 40, 48, 2), Sprite("recursos/mimico/wp (2).png", 6, False)),
 
 MP:  (Sprite("recursos/mimico/mp.png", 4, False),
-     1, (92, 48, 36, 44, 4), Sprite("recursos/mimico/mp (2).png", 4, False)),
+     1, (92, 48, 36, 44, 6), Sprite("recursos/mimico/mp (2).png", 4, False)),
 
 WK:  (Sprite("recursos/mimico/wk.png", 4, False),
      1, (88, 48, 40, 68, 2), Sprite("recursos/mimico/wk (2).png", 4, False)),
 
 MK:  (Sprite("recursos/mimico/mk.png", 4, False),
-     1, (48, 40, 72, 68, 40), Sprite("recursos/mimico/mk (2).png", 4, False)),
+     1, (48, 40, 72, 68, 8), Sprite("recursos/mimico/mk (2).png", 4, False)),
                     CATCH: (Sprite("recursos/mimico/catch.png", 6, False), 2, None, Sprite("recursos/mimico/catch (2).png", 6, False)),
                     DESTROYING: (Sprite("recursos/mimico/destroy.png", 10, False), 9, None, Sprite("recursos/mimico/destroy (2).png", 10, False)),
                     HA: (Sprite("recursos/mimico/ha.png", 1, False), 0, None, Sprite("recursos/mimico/ha (2).png", 1, False)),

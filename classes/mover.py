@@ -9,6 +9,7 @@ class Mover(GameImage):
         self.ini = x
         self.fim = x+147
         self.moving = False
+        self.x = self.fim
 
     def get_scene(self):
         return self.scene
