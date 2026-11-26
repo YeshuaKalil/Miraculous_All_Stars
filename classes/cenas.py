@@ -198,6 +198,11 @@ class Jogo(Scene):
                 self.espelhado1 = False
                 self.espelhado2 = True
                 
+                self.sameHit1 = 0
+                self.hitCounter1 = 0
+                self.sameHit2 = 0
+                self.hitCounter2 = 0
+                
                 self.beggining = 0
                 self.ending = 0
                 self.vencedor = 0
@@ -298,31 +303,6 @@ class Jogo(Scene):
         col1 = self.p1.update(self.janela, self.buffers[0], self.chao, self.objetos, self.camera)
         col2 = self.p2.update(self.janela, self.buffers[1], self.chao, self.objetos, self.camera)
         
-        colI1 = []
-        for i in self.p1.illusions:
-                colI1.append(i.update(self.janela, None, self.chao, None, self.camera))
-                
-        
-        for i in range(len(self.p1.illusions)):
-            if not self.p1.illusions[i].hit(self.checkCollision(col2, colI1[i], self.espelhado2), False):
-                self.p1.deleteI(i)
-                break
-            #if not (self.p1.illusions[i].x+self.p1.illusions[i].collision["low"][2]<self.chao.x+self.chao.width and self.p1.illusions[i].x+self.p1.illusions[i].collision["low"][2]+self.p1.illusions[i].collision["low"][0]>self.chao.x):
-               # self.p1.deleteI(i)
-               # break
-    
-        colI2 = []
-        for i in self.p2.illusions:
-                colI2.append(i.update(self.janela, None, self.chao, None, self.camera))
-                
-        for i in range(len(self.p2.illusions)):
-                    if not self.p2.illusions[i].hit(self.checkCollision(col1, colI2[i], self.espelhado2), False):
-                        self.p2.deleteI(i)
-                        break
-                    #if not (self.p1.illusions[i].x+self.p1.illusions[i].collision["low"][2]<self.chao.x+self.chao.width and self.p1.illusions[i].x+self.p1.illusions[i].collision["low"][2]+self.p1.illusions[i].collision["low"][0]>self.chao.x):
-                     #   self.p1.deleteI(i)
-                      #  break
-        
         if col1 == "ENDER":
             self.p1.winningState()
             self.p2.losingState()
@@ -350,11 +330,77 @@ class Jogo(Scene):
             self.vencedor = 1
             return
         
+        colI1 = []
+        for i in self.p1.illusions:
+            colI1.append(i.update(self.janela, None, self.chao, None, self.camera))
+                        
+                
+        for i in range(len(self.p1.illusions)):
+            if not self.p1.illusions[i].hit(self.checkCollision(col2, colI1[i], self.espelhado2), False):
+                self.p1.deleteI(i)
+                break
+                    #if not (self.p1.illusions[i].x+self.p1.illusions[i].collision["low"][2]<self.chao.x+self.chao.width and self.p1.illusions[i].x+self.p1.illusions[i].collision["low"][2]+self.p1.illusions[i].collision["low"][0]>self.chao.x):
+                       # self.p1.deleteI(i)
+                       # break
+            
+        colI2 = []
+        for i in self.p2.illusions:
+            colI2.append(i.update(self.janela, None, self.chao, None, self.camera))
+                        
+        for i in range(len(self.p2.illusions)):
+            if not self.p2.illusions[i].hit(self.checkCollision(col1, colI2[i], self.espelhado2), False):
+                self.p2.deleteI(i)
+                break
+                            #if not (self.p1.illusions[i].x+self.p1.illusions[i].collision["low"][2]<self.chao.x+self.chao.width and self.p1.illusions[i].x+self.p1.illusions[i].collision["low"][2]+self.p1.illusions[i].collision["low"][0]>self.chao.x):
+                             #   self.p1.deleteI(i)
+                              #  break
+                
+        
         for object in self.objetos:
             object.update(self.janela, self.chao)
         
-        self.p2.hit(self.checkCollision(col1, col2, self.espelhado1), defending2)
-        self.p1.hit(self.checkCollision(col2, col1, self.espelhado2), defending1)
+        
+        hit2 = self.checkCollision(col1, col2, self.espelhado1)
+        hit1 = self.checkCollision(col2, col1, self.espelhado2)
+        
+        if hit2 and hit2[0] == "high":
+            self.sameHit2 += 1
+        if self.sameHit2 > 0:
+            self.hitCounter2 += self.janela.delta_time()
+            if self.hitCounter2 > 2:
+                self.hitCounter2 = 0
+                self.sameHit2 = 0
+        if hit1 and hit1[0] == "high":
+            self.sameHit1 += 1
+        if self.sameHit1 > 0:
+            self.hitCounter1 += self.janela.delta_time()
+            if self.hitCounter1 > 2:
+                self.hitCounter1 = 0
+                self.sameHit1 = 0
+        print(self.sameHit1>1)
+        objectable1 = False
+        objectable2 = False
+        if self.p1.name == "mimico":
+            objectable1 = self.p2.y+self.p2.collision["low"][3]+self.p2.collision["low"][1] < self.p1.y+self.p1.collision["low"][3]
+        else:
+            objectable1 = self.sameHit1 > 40
+            self.sameHit = 0
+        
+        if self.p2.name == "mimico":
+            objectable2 = self.p1.y+self.p1.collision["low"][3]+self.p1.collision["low"][1] < self.p2.y+self.p2.collision["low"][3]
+        else:
+            objectable2 = self.sameHit2 > 40
+            self.sameHit = 0
+            
+        bat1 = self.p1.currentState == 4 and self.p1.name == "mimico"
+        bat2 = self.p2.currentState == 4 and self.p2.name == "mimico"
+        #if len(col1)>2 and len(col1[2])>4:
+         #   bat1 = True
+        #if len(col2)>2 and len(col2[2])>4:
+         #   bat2 = True
+
+        self.p2.hit(hit2, defending2, objectable2, bat1)
+        self.p1.hit(hit1, defending1, objectable1, bat2)
         
         self.vida1.set_value(self.p1.get_vida())
         self.vida2.set_value(self.p2.get_vida())

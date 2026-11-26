@@ -24,6 +24,9 @@ DF = 16
 DESTROYING = 17
 WIN = 18
 LOSE = 19
+IDLEP = 20
+WALKP = 21
+CAUGHT = 22
 
 class Player(Sprite):
     
@@ -99,6 +102,7 @@ class Player(Sprite):
         self.pulando = False
         self.andandoEsq = True
         self.andandoDir = False
+        self.knockback = False
         
         self.objects = []
         self.available = True
@@ -169,7 +173,7 @@ class Player(Sprite):
 
         return None
      
-    def hit(self, mode, defense=False):
+    def hit(self, mode, defense=False, objectable=False, bat=False):
         if mode:
             print("ioiho")
             if self.type == "player":
@@ -184,17 +188,22 @@ class Player(Sprite):
                     self.vida -= mode[1]
                     print(self.objects)
                     if self.objects and self.objects[0].portador == self:
-                        self.objects[0].descolar(self.x, self.y)
-                        self.objects.pop(0)
-                if mode[0] == "high":
-                    self.currentState = HA
+                        if self.objects[0].pai != self or objectable:
+                            self.objects[0].descolar(self.x, self.y)
+                            self.objects.pop(0)
+                if bat:
+                    self.currentState = CAUGHT
                 else:
-                    self.currentState = HB   
+                    if mode[0] == "high":
+                        self.currentState = HA
+                    else:
+                        self.currentState = HB
+            if bat: self.knockback = True  
             self.states[self.currentState][self.var].set_position(self.x, self.y)
         return True
             
     def occupied(self):
-        if self.currentState in [WALK, JUMP, IDLE]:
+        if self.currentState in [WALK, JUMP, IDLE, IDLEP, WALKP]:
             return False
         return True
     
@@ -218,6 +227,7 @@ class Player(Sprite):
         super().update()
         
         self.puff.update()
+        
         
         buffer_duration = 0.4
         current_time = time.perf_counter()
@@ -259,47 +269,61 @@ class Player(Sprite):
                 self.x = janela.width-self.states[self.currentState][0].width
                 self.andandoEsq = True
                 self.andandoDir = False 
-        
-        if self.currentState in [HA, HB, DF, POWER]:
-            dur = self.hit_dur
-            if self.currentState == POWER: 
-                dur = self.power_dur
-                if self.hit_count >= self.power_dur / 2:
-                    self.gatilhoCounter += janela.delta_time()
-                    if self.gatilhoCounter >= self.gatilhoDisparo:
-                        self.activate()
+        if not (self.name == "mimico" and self.currentState == POWER):
+            if self.currentState in [HA, HB, DF, POWER]:
+                print("uygogyyug")
+                dur = self.hit_dur
+                if self.currentState == POWER: 
+                    dur = self.power_dur
+                    if self.hit_count >= self.power_dur / 2:
+                        self.gatilhoCounter += janela.delta_time()
+                        if self.gatilhoCounter >= self.gatilhoDisparo:
+                            self.activate()
+                            self.gatilhoCounter = 0
+                    else:
                         self.gatilhoCounter = 0
+                if self.hit_count < dur:
+                    self.states[self.currentState][self.var].set_position(self.x, self.y)
+                    self.states[self.currentState][self.var].set_curr_frame(0)
+                    colInfo.append(None)
+                    self.hit_count+=janela.delta_time()
+                    return colInfo
                 else:
-                    self.gatilhoCounter = 0
-            if self.hit_count < dur:
-                self.states[self.currentState][self.var].set_position(self.x, self.y)
-                self.states[self.currentState][self.var].set_curr_frame(0)
-                colInfo.append(None)
-                self.hit_count+=janela.delta_time()
-                return colInfo
-            else:
-                self.currentState = IDLE
-                self.states[self.currentState][self.var].set_curr_frame(0)
-                if buffer: buffer.clear()
-                self.hit_count = 0
-        
-        if self.currentState == IDLE or self.currentState == WALK or self.currentState == JUMP:
+                    self.currentState = IDLE
+                    self.states[self.currentState][self.var].set_curr_frame(0)
+                    if buffer: buffer.clear()
+                    self.hit_count = 0
+       #print(self.currentState)
+        if self.currentState == IDLEP or self.currentState == WALKP or self.currentState == IDLE or self.currentState == WALK or self.currentState == JUMP:
             if self.andandoEsq or self.andandoDir:
                 if self.andandoDir:
                     self.vx = 400
                 if self.andandoEsq: 
                     self.vx = -400
                 if self.currentState != JUMP:
-                    self.currentState = WALK
+                    if self.currentState not in [IDLEP, WALKP]:
+                        self.currentState = WALK
+                    else:
+                        self.currentState = WALKP
             elif self.ground == True:
                 self.vx = 0
-                self.currentState = IDLE
+                if self.currentState not in [IDLEP, WALKP]:
+                    self.currentState = IDLE
+                else:
+                    self.currentState = IDLEP
             if self.pulando and self.ground == True:
                 self.vy = self.jump
-                self.currentState = JUMP
+                if self.currentState not in [IDLEP, WALKP]: self.currentState = JUMP
         elif self.ground == True:
             self.vx = 0
         
+        if self.knockback:
+            self.knockback = False
+            if self.states[self.currentState][self.var].espelhado:
+                self.vx += 800
+            else:
+                self.vx -= 800
+            self.vy = 2*self.jump
         self.x += self.vx * janela.delta_time()
         telaX = cam.transform_x(self.x)
         if telaX < 0:
@@ -312,7 +336,7 @@ class Player(Sprite):
             self.y = chao.y-self.collision["low"][1]-self.collision["low"][3]
             self.vy = 0
             self.ground = True
-            if self.currentState == JUMP and not self.pulando:
+            if (self.currentState == JUMP and not self.pulando) or self.currentState == CAUGHT:
                 self.currentState = IDLE
         else:
             self.vy += self.g * janela.delta_time()
@@ -384,42 +408,49 @@ class Player(Sprite):
                     self.states[self.currentState][self.var].set_curr_frame(0)
                     
                     
-        elif frame == last_frame or self.currentState in [WALK, JUMP, IDLE]:
+        elif frame == last_frame or self.currentState in [WALK, JUMP, IDLE, WALKP, IDLEP]:
             if self.fila:
                 command = self.fila.pop(0)["command"]
-
-                if command == "wp":
-                    self.currentState = WP
-                elif command == "mp":
-                    self.currentState = MP
-                elif command == "wk":
-                    self.currentState = WK
-                elif command == "mk":
-                    self.currentState = MK
-                elif command == "baixo+wp":
-                    self.currentState = CATCH
-                elif command == "cima+mp":
-                    can_destroy = False
-                    for object in self.objects:
-                        if object.pai != object.portador:
-                            can_destroy = True
-                    if can_destroy: self.currentState = DESTROYING
-                elif command == "pw" and (not self.illusions) and self.currentState!=POWER:
+                if self.currentState in [WALKP, IDLEP, POWER]:
                     self.currentState = POWER
-                    print("Ativo")
+                else:
+                    if command == "wp":
+                        self.currentState = WP
+                    elif command == "mp":
+                        self.currentState = MP
+                    elif command == "wk":
+                        self.currentState = WK
+                    elif command == "mk":
+                        self.currentState = MK
+                    elif command == "baixo+wp":
+                        self.currentState = CATCH
+                    elif command == "cima+mp":
+                        can_destroy = False
+                        for object in self.objects:
+                            if object.pai != object.portador:
+                                can_destroy = True
+                        if can_destroy: self.currentState = DESTROYING
+                    elif command == "pw" and (not self.illusions) and self.currentState!=POWER:
+                        self.currentState = POWER
+                        if self.name == "mimico":
+                            self.currentState = IDLEP
                 
                 self.states[self.currentState][self.var].set_curr_frame(0)
                 
-            elif self.currentState == WALK or self.currentState == JUMP:
+            elif self.currentState == WALK or self.currentState == JUMP or self.currentState == WALKP or self.currentState == CAUGHT:
                 self.frameCount += janela.delta_time()
                 if self.frameCount >= self.frameLimit:
                     self.frameCount -= self.frameLimit
                     self.states[self.currentState][self.var].set_curr_frame((frame + 1) % self.states[self.currentState][self.var].total_frames)
             else:
-                self.currentState = IDLE
+                if self.currentState not in [IDLEP, WALKP, POWER]: 
+                    self.currentState = IDLE
+                else:
+                    self.currentState = IDLEP
                 self.states[self.currentState][0].set_curr_frame(0)
                                 
         else:
+            if self.currentState == POWER: print("hiiu")
             self.frameCount += janela.delta_time()
             if self.frameCount >= self.frameLimit:
                 self.frameCount -= self.frameLimit
@@ -468,6 +499,7 @@ class Volpina(Player):
                     POWER: []
                 }
         self.states = {
+                    CAUGHT: (Sprite("recursos/volpina/bat.png", 1), None, None, Sprite("recursos/volpina/bat (2).png", 1)),
                     WIN: (Sprite("recursos/volpina/idle.png", 1), None, None, Sprite("recursos/volpina/idle (2).png", 1)),
                     IDLE: (Sprite("recursos/volpina/idle.png", 1), None, None, Sprite("recursos/volpina/idle (2).png", 1)),
                     WALK: (Sprite("recursos/volpina/walk.png", 12), None, None, Sprite("recursos/volpina/walk (2).png", 12)),
@@ -543,12 +575,15 @@ class Mimico(Player):
                     POWER: []
                 }
         self.states = {
+                    CAUGHT: (Sprite("recursos/mimico/bat.png", 1), None, None, Sprite("recursos/mimico/bat (2).png", 1)),
                     WIN: (Sprite("recursos/mimico/idle.png", 1), None, None, Sprite("recursos/mimico/idle (2).png", 1)),
                     IDLE: (Sprite("recursos/mimico/idle.png", 1), None, None, Sprite("recursos/mimico/idle (2).png", 1)),
                     WALK: (Sprite("recursos/mimico/walk.png", 12), None, None, Sprite("recursos/mimico/walk (2).png", 12)),
                     #CROUCH: {Sprite("recursos/jogador/volpina_crouch.png", 4), 0},
                     JUMP: (Sprite("recursos/mimico/jump.png", 1), None, None, Sprite("recursos/mimico/jump (2).png", 1)),
-                    POWER: (Sprite("recursos/mimico/idleP.png", 1), None, None, Sprite("recursos/mimico/idleP (2).png", 1)),
+                    POWER: (Sprite("recursos/mimico/pw.png", 4), 2, (58, 48, 75, 48, 2, 1), Sprite("recursos/mimico/pw (2).png", 4)),
+                    IDLEP: (Sprite("recursos/mimico/idleP.png", 1), None, None, Sprite("recursos/mimico/idleP (2).png", 1)),
+                    WALKP: (Sprite("recursos/mimico/walkP.png", 12), None, None, Sprite("recursos/mimico/walkP (2).png", 12)),
                     #CWALK: {Sprite("recursos/jogador/volpina_crouchWalk.png", 10), 0},
                     #WP: (Sprite("recursos/jogador/wp.png", 5, False), 2, (12, 12, 116, 94, 20)),
                     #WWP: (Sprite("recursos/jogador/wwp.png", 4, False), 0, (0,0,0,0, 20)),
