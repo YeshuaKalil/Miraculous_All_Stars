@@ -11,6 +11,8 @@ from PPlay.gameimage import GameImage
 from object import Object
 import time
 from PPlay.camera import Camera
+from PPlay.fontes import Fontes
+Fontes.registrar("Pixel", "recursos/pixel.ttf")
 
 class Menu(Scene):
     button = []
@@ -46,7 +48,7 @@ class Menu(Scene):
         controls.define_action("mp2", "8")
         controls.define_action("wk2", "9")
         controls.define_action("mk2", "0")
-        controls.define_action("pw2", "=")
+        controls.define_action("pw2", "6")
         
 
     def loop(self):
@@ -129,7 +131,8 @@ class Select(Scene):
         
             
     def draw(self):
-        self.fundo.draw()
+        #self.fundo.draw()
+        self.janela.set_background_color((0,30,0))
         self.display1[(self.j1.x, self.j1.y)].draw()
         self.display2[(self.j2.x, self.j2.y)].draw()
         self.select.draw()
@@ -157,8 +160,8 @@ class Jogo(Scene):
     def __init__(self, controls, p1, p2):
                 super().__init__()
 
-                self.chao = Sprite("recursos/prato.png")
-                self.chao.set_position(0, 400)
+                self.chao = Sprite("recursos/chao.png")
+                self.chao.set_position(-400, 400)
                 self.chao.image.set_alpha(255)
                 #self.fisica = Physics(gravidade=5500)
                 #self.jogador.setup_physics(self.fisica, controlavel=False)
@@ -175,8 +178,8 @@ class Jogo(Scene):
                 self.objetos = [Object(0, 0, f"recursos/{p1.name}/obj.png", None), Object(0, 0, f"recursos/{p2.name}/obj.png", None)]
                 
                 # Corrigir para controle configuravel
-                self.p1 = p1(200, self.chao.y-116, ["w", "s", "a", "d"], self.objetos[0])
-                self.p2 = p2(472, self.chao.y-116, ["UP", "DOWN", "LEFT", "RIGHT"], self.objetos[1])
+                self.p1 = p1(200, self.chao.y, ["w", "s", "a", "d"], self.objetos[0])
+                self.p2 = p2(472, self.chao.y, ["UP", "DOWN", "LEFT", "RIGHT"], self.objetos[1])
                 
                 self.objetos[0].pai = self.p1
                 self.objetos[0].portador = self.p1
@@ -184,11 +187,11 @@ class Jogo(Scene):
                 self.objetos[1].pai = self.p2
                 self.objetos[1].portador = self.p2
                 
-                self.vida1 = ProgressBar(300, 20, "green", "black")
+                self.vida1 = ProgressBar(300, 30, "green", "black")
                 self.vida1.set_position(50,40)
                 self.vida1.valor_max = 100
                 
-                self.vida2 = ProgressBar(300, 20, "green", "black")
+                self.vida2 = ProgressBar(300, 30, "green", "black")
                 self.vida2.set_position(450,40)
                 self.vida2.valor_max = 100
                 
@@ -250,7 +253,7 @@ class Jogo(Scene):
             return
         if self.ending > 0:
             self.ending += self.janela.delta_time()
-            if self.ending > 4:
+            if self.ending > 3:
                 SceneManager.change_scene(Menu(0, self.controls))
             return
         
@@ -297,12 +300,28 @@ class Jogo(Scene):
         
         colI1 = []
         for i in self.p1.illusions:
-                colI1.append(i.update(self.janela, self.buffers[0], self.chao, None, self.camera))
+                colI1.append(i.update(self.janela, None, self.chao, None, self.camera))
+                
         
         for i in range(len(self.p1.illusions)):
             if not self.p1.illusions[i].hit(self.checkCollision(col2, colI1[i], self.espelhado2), False):
                 self.p1.deleteI(i)
                 break
+            #if not (self.p1.illusions[i].x+self.p1.illusions[i].collision["low"][2]<self.chao.x+self.chao.width and self.p1.illusions[i].x+self.p1.illusions[i].collision["low"][2]+self.p1.illusions[i].collision["low"][0]>self.chao.x):
+               # self.p1.deleteI(i)
+               # break
+    
+        colI2 = []
+        for i in self.p2.illusions:
+                colI2.append(i.update(self.janela, None, self.chao, None, self.camera))
+                
+        for i in range(len(self.p2.illusions)):
+                    if not self.p2.illusions[i].hit(self.checkCollision(col1, colI2[i], self.espelhado2), False):
+                        self.p2.deleteI(i)
+                        break
+                    #if not (self.p1.illusions[i].x+self.p1.illusions[i].collision["low"][2]<self.chao.x+self.chao.width and self.p1.illusions[i].x+self.p1.illusions[i].collision["low"][2]+self.p1.illusions[i].collision["low"][0]>self.chao.x):
+                     #   self.p1.deleteI(i)
+                      #  break
         
         if col1 == "ENDER":
             self.p1.winningState()
@@ -352,6 +371,17 @@ class Jogo(Scene):
                 self.p1.winningState()
                 self.p2.losingState()
                 return
+            
+        if not (self.p1.x+self.p1.collision["low"][2]<self.chao.x+self.chao.width and self.p1.x+self.p1.collision["low"][2]+self.p1.collision["low"][0]>self.chao.x):
+            if self.p1.y+self.p1.collision["low"][3]+self.p1.collision["low"][1]>self.chao.y:
+                self.p2.winningState()
+                self.p1.losingState()
+                return 
+        if not (self.p2.x+self.p2.collision["low"][2]<self.chao.x+self.chao.width and self.p2.x+self.p2.collision["low"][2]+self.p2.collision["low"][0]>self.chao.x):
+                    if self.p2.y+self.p2.collision["low"][3]+self.p2.collision["low"][1]>self.chao.y:
+                        self.p1.winningState()
+                        self.p2.losingState()
+                        return 
                 
         
         if self.teclado.key_pressed("ESC"):
@@ -371,15 +401,15 @@ class Jogo(Scene):
         
         if self.ending > 0:
             if self.vencedor > 0:
-                self.janela.draw_text(f"Jogador {self.vencedor} venceu!", 150, 120, tamanho=60, cor="red")
+                self.janela.draw_text(f"Jogador {self.vencedor} venceu!", 200, 120, tamanho=60, cor="red", fonte = "Pixel")
             else:
-                self.janela.draw_text(f"Empate!", 150, 120, tamanho=60, cor="red")
+                self.janela.draw_text(f"Empate!", 180, 120, tamanho=60, cor="red", fonte = "Pixel")
         #self.astro.draw()
         if self.beggining < 4:
             if self.beggining < 3:
-                self.janela.draw_text("Preparar...", 150, 120, tamanho=60, cor="green")
+                self.janela.draw_text("Preparar...", 310, 120, tamanho=60, cor="green", fonte = "Pixel")
             else:
-                self.janela.draw_text("Vai!!!", 150, 120, tamanho=60, cor="green")
+                self.janela.draw_text("Vai!!!", 350, 120, tamanho=60, cor="green", fonte = "Pixel")
         
 
 class Opcao(Scene):
