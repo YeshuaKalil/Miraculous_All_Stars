@@ -11,8 +11,9 @@ from object import Object
 import time
 from PPlay.camera import Camera
 from PPlay.fontes import Fontes
-Fontes.registrar("Pixel", "recursos/pixel.ttf")
 from PPlay.sound import Music, Sound, SoundManager
+
+Fontes.registrar("Pixel", "recursos/pixel.ttf")
 
 volume = 100
 theme = Music("recursos/sons/tema.ogg")
